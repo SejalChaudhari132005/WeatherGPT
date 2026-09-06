@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { MapPin, Search, Mic, Bell, User, Radio, Globe, Sun, ChevronDown } from 'lucide-react';
+import { MapPin, Search, Mic, Bell, User, Radio, Globe, ChevronDown } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 import { useWeather } from '../../context/WeatherContext';
 import { useLanguage, LANGUAGES, LanguageCode } from '../../context/LanguageContext';
 import { DemoBadge } from '../common/DemoBadge';
 
 export const Header: React.FC = () => {
-  const { setLocationModalOpen, setVoiceModalOpen, sidebarOpen } = useUI();
+  const { setLocationModalOpen, setVoiceModalOpen, setActiveTab } = useUI();
   const { userLocation } = useWeather();
   const { language, setLanguage } = useLanguage();
 
@@ -91,9 +91,9 @@ export const Header: React.FC = () => {
           </button>
 
           {/* Profile */}
-          <div className="p-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center cursor-pointer">
+          <button onClick={() => setActiveTab('profile')} className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center cursor-pointer" title="Profile">
             <User className="w-4 h-4" />
-          </div>
+          </button>
         </div>
       </div>
     </header>

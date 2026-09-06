@@ -13,6 +13,9 @@ export function useAuth() {
     handleSendOtp,
     handleVerifyOtp,
     handleResendOtp,
+    handleEmailLogin,
+    handleEmailSignUp,
+    handleGoogleSignIn,
     handleSignOut,
     setOnboardingStep,
   } = useAuthContext();
@@ -31,6 +34,9 @@ export function useAuth() {
     sendOtp: handleSendOtp,
     verifyOtp: handleVerifyOtp,
     resendOtp: handleResendOtp,
+    loginWithEmail: handleEmailLogin,
+    signUpWithEmail: handleEmailSignUp,
+    signInWithGoogle: handleGoogleSignIn,
     signOut: handleSignOut,
     goToStep: setOnboardingStep,
   };

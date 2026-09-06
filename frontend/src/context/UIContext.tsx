@@ -10,7 +10,8 @@ export type ActiveTab =
   | 'climate'
   | 'whatif'
   | 'travel'
-  | 'emergency';
+  | 'emergency'
+  | 'profile';
 
 interface UIContextType {
   activeTab: ActiveTab;

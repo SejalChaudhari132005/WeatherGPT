@@ -1,160 +1,193 @@
-import React, { useState } from 'react';
-import { ArrowLeft, User, Phone, MapPin, Briefcase, Globe, Check, Save } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { LogOut, MapPin, Save, UserRound } from 'lucide-react';
 import { useAuthContext } from '../context/AuthContext';
-import { useWeather } from '../context/WeatherContext';
-import { ALL_ROLES } from '../types/role';
+import { profileService } from '../services/profileService';
+import { supabase } from '../lib/supabase';
+import { UserProfile, UserRole } from '../types/user';
 
-interface Props {
-  onBack: () => void;
-}
+const ROLE_LABELS: Record<UserRole, string> = {
+  citizen: 'Citizen',
+  farmer: 'Farmer',
+  fisherman: 'Fisherman',
+  disaster_manager: 'Disaster Manager',
+  aviation: 'Aviation',
+  urban_planner: 'Urban Planner',
+  researcher: 'Researcher',
+  journalist: 'Journalist',
+  transport: 'Transport',
+  other: 'Other',
+};
 
-export const ProfilePage: React.FC<Props> = ({ onBack }) => {
-  const { profile, updateProfile } = useAuthContext();
-  const { userLocation } = useWeather();
+const displayValue = (value: string | number | undefined | null, fallback = 'Not set') =>
+  value === undefined || value === null || value === '' ? fallback : String(value);
 
-  const [username, setUsername] = useState(profile?.username || '');
-  const [role, setRole] = useState(profile?.role || 'citizen');
-  const [language, setLanguage] = useState(profile?.preferred_language || 'en');
-  const [isSaved, setIsSaved] = useState(false);
+export const ProfilePage: React.FC = () => {
+  const { userProfile, userId, handleSignOut, setErrorMessage } = useAuthContext();
+  const [profile, setProfile] = useState<UserProfile | null>(userProfile);
+  const [authEmail, setAuthEmail] = useState('');
+  const [metadataName, setMetadataName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [username, setUsername] = useState('');
+  const [language, setLanguage] = useState('en');
+  const [role, setRole] = useState<UserRole>('citizen');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
-  const locationDisplay = userLocation
-    ? `${userLocation.city}, ${userLocation.state || userLocation.country}`
-    : profile?.city
-    ? `${profile.city}, ${profile.state || profile.country}`
-    : 'Nashik, Maharashtra';
+  useEffect(() => {
+    const loadUserMetadata = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) return;
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await updateProfile({
-      username: username.trim(),
-      role,
-      preferred_language: language,
-    });
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2500);
+      const metadata = data.user.user_metadata || {};
+      setAuthEmail(data.user.email || '');
+      setMetadataName(metadata.full_name || metadata.name || '');
+      setAvatarUrl(metadata.avatar_url || metadata.picture || '');
+    };
+
+    void loadUserMetadata();
+  }, []);
+
+  useEffect(() => {
+    setProfile(userProfile);
+    setUsername(userProfile?.username || '');
+    setLanguage(userProfile?.preferred_language || 'en');
+    setRole(userProfile?.role || 'citizen');
+  }, [userProfile]);
+
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!profile || !userId) return;
+
+    setIsSaving(true);
+    setSaveMessage('');
+    try {
+      const updated = await profileService.upsertProfile({
+        ...profile,
+        user_id: userId,
+        username: username.trim(),
+        preferred_language: language,
+        role,
+      });
+      setProfile(updated);
+      setUsername(updated.username);
+      setLanguage(updated.preferred_language);
+      setRole(updated.role);
+      setIsEditing(false);
+      setSaveMessage('Profile saved.');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to save your profile.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  const displayName = metadataName || profile?.username || 'WeatherGPT User';
+  const initials = displayName
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
-    <div className="min-h-screen bg-[#F4F7FC] p-4 sm:p-6 font-['Arimo'] max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={onBack}
-          className="p-2.5 rounded-2xl bg-white text-slate-700 border border-slate-200 shadow-2xs hover:bg-slate-50 cursor-pointer"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+    <div className="min-h-full bg-[#F4F7FC] p-4 sm:p-6 font-['Arimo']">
+      <div className="space-y-5 pb-8">
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">User Profile</h2>
-          <p className="text-xs text-slate-500 font-medium">Manage your personal details & weather assistance preferences</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-md space-y-6">
-        {/* User Avatar & Title */}
-        <div className="flex items-center gap-4 pb-6 border-b border-slate-200">
-          <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#004aad] to-[#38b6ff] text-white flex items-center justify-center font-black text-2xl shadow-lg">
-            {username ? username.charAt(0).toUpperCase() : 'U'}
-          </div>
-          <div>
-            <h3 className="text-xl font-extrabold text-slate-900">{profile?.username || 'WeatherGPT User'}</h3>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-100 text-[#004aad] text-xs font-black uppercase mt-1">
-              <Briefcase className="w-3 h-3" /> {role}
-            </span>
-          </div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Profile</h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Your WeatherGPT account and saved location</p>
         </div>
 
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Username */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Username</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#38b6ff]"
-              />
-              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-            </div>
-          </div>
-
-          {/* Phone (Read Only) */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Mobile Number (Supabase Verified)</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={profile?.phone || '+91 98765 43210'}
-                disabled
-                className="w-full pl-10 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl text-sm font-bold text-slate-500 cursor-not-allowed"
-              />
-              <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-            </div>
-          </div>
-
-          {/* Location (Read Only / Change Location) */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Saved Location Context</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={`📍 ${locationDisplay}`}
-                disabled
-                className="w-full pl-10 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 cursor-not-allowed"
-              />
-              <MapPin className="w-4 h-4 text-rose-500 absolute left-3.5 top-3.5" />
-            </div>
-          </div>
-
-          {/* Role Selection */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Assistance Role</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as any)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#38b6ff]"
-            >
-              {ALL_ROLES.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.icon} {r.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Preferred Language */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Preferred Language</label>
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#38b6ff]"
-            >
-              <option value="en">English</option>
-              <option value="hi">Hindi (हिंदी)</option>
-              <option value="mr">Marathi (मराठी)</option>
-              <option value="ta">Tamil (தமிழ்)</option>
-              <option value="te">Telugu (తెలుగు)</option>
-            </select>
-          </div>
-
-          {isSaved && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-bold text-emerald-800 flex items-center justify-center gap-2">
-              <Check className="w-4 h-4 text-emerald-600" />
-              <span>Profile updated successfully!</span>
+        <section className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-md flex items-center gap-4">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Profile" className="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
+          ) : (
+            <div className="w-16 h-16 rounded-2xl bg-sky-100 text-[#004aad] flex items-center justify-center text-lg font-black">
+              {initials || <UserRound className="w-7 h-7" />}
             </div>
           )}
+          <div className="min-w-0">
+            <h2 className="text-lg font-black text-slate-900 truncate">{displayName}</h2>
+            <p className="text-sm text-slate-500 truncate">{displayValue(authEmail)}</p>
+          </div>
+        </section>
 
-          <button
-            type="submit"
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#38b6ff] to-[#004aad] hover:opacity-95 text-white font-extrabold text-base shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
-          >
-            <Save className="w-5 h-5" />
-            <span>Save Profile</span>
-          </button>
+        <form onSubmit={handleSave} className="space-y-5">
+          <section className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-md space-y-4">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Personal Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ProfileField label="Name" value={displayName} />
+              <ProfileField label="Email" value={authEmail} />
+              {isEditing ? (
+                <label className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">Username</span>
+                  <input value={username} onChange={(event) => setUsername(event.target.value)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500" />
+                </label>
+              ) : (
+                <ProfileField label="Username" value={profile?.username} />
+              )}
+              {isEditing ? (
+                <label className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">Role</span>
+                  <select value={role} onChange={(event) => setRole(event.target.value as UserRole)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">
+                    {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+              ) : (
+                <ProfileField label="Role" value={ROLE_LABELS[profile?.role || 'citizen']} />
+              )}
+            </div>
+          </section>
+
+          <section className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-md space-y-4">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Preferences</h3>
+            {isEditing ? (
+              <label className="space-y-1.5 block max-w-sm">
+                <span className="text-[11px] font-bold text-slate-500 uppercase">Language</span>
+                <select value={language} onChange={(event) => setLanguage(event.target.value)} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">
+                  <option value="en">English</option>
+                  <option value="hi">Hindi</option>
+                  <option value="mr">Marathi</option>
+                </select>
+              </label>
+            ) : <ProfileField label="Language" value={profile?.preferred_language === 'hi' ? 'Hindi' : profile?.preferred_language === 'mr' ? 'Marathi' : 'English'} />}
+          </section>
+
+          <section className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-md space-y-4">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2"><MapPin className="w-4 h-4 text-sky-600" /> Location</h3>
+            {profile?.city || profile?.latitude !== undefined ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <ProfileField label="City" value={profile?.city} />
+                <ProfileField label="District" value={profile?.district} />
+                <ProfileField label="State" value={profile?.state} />
+                <ProfileField label="Country" value={profile?.country} />
+                <ProfileField label="Latitude" value={profile?.latitude} />
+                <ProfileField label="Longitude" value={profile?.longitude} />
+                <ProfileField label="Location Source" value={profile?.location_source?.toUpperCase()} />
+              </div>
+            ) : <p className="text-sm font-bold text-slate-500">Location not set</p>}
+          </section>
+
+          {saveMessage && <p className="text-sm font-bold text-emerald-700 text-center">{saveMessage}</p>}
+          <div className="space-y-3">
+            {isEditing ? (
+              <button type="submit" disabled={isSaving} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#38b6ff] to-[#004aad] text-white font-extrabold shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-60">
+                <Save className="w-4 h-4" /> {isSaving ? 'Saving...' : 'Save Profile'}
+              </button>
+            ) : (
+              <button type="button" onClick={() => setIsEditing(true)} className="w-full py-3.5 rounded-2xl bg-[#004aad] text-white font-extrabold shadow-lg shadow-blue-900/20">Edit Profile</button>
+            )}
+            <button type="button" onClick={() => void handleSignOut()} className="w-full py-3.5 rounded-2xl bg-white border border-rose-200 text-rose-700 font-extrabold flex items-center justify-center gap-2"><LogOut className="w-4 h-4" /> Logout</button>
+          </div>
         </form>
       </div>
     </div>
   );
 };
+
+const ProfileField: React.FC<{ label: string; value: string | number | undefined | null }> = ({ label, value }) => (
+  <div className="min-w-0 space-y-1.5">
+    <div className="text-[11px] font-bold text-slate-500 uppercase">{label}</div>
+    <div className="text-sm font-bold text-slate-800 break-words">{displayValue(value)}</div>
+  </div>
+);

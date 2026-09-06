@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 export interface AuthResponse {
   success: boolean;
@@ -8,6 +8,67 @@ export interface AuthResponse {
 }
 
 export class AuthService {
+  public async signInWithEmail(email: string, password: string): Promise<AuthResponse> {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        return { success: false, message: error.message };
+      }
+
+      if (!data.session) {
+        return { success: false, message: 'Authentication succeeded but no session was returned.' };
+      }
+
+      return { success: true, user: data.user, session: data.session };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Unable to sign in.' };
+    }
+  }
+
+  public async signUpWithEmail(email: string, password: string): Promise<AuthResponse> {
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+
+      if (error) {
+        return { success: false, message: error.message };
+      }
+
+      if (!data.session) {
+        return {
+          success: false,
+          message: 'Account created. Check your email to confirm your account before signing in.',
+        };
+      }
+
+      return { success: true, user: data.user, session: data.session };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Unable to create your account.' };
+    }
+  }
+
+  public async signInWithGoogle(): Promise<AuthResponse> {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      });
+
+      if (error) {
+        return { success: false, message: error.message };
+      }
+
+      if (!data.url) {
+        return { success: false, message: 'Google sign-in could not be started.' };
+      }
+
+      window.location.assign(data.url);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Unable to continue with Google.' };
+    }
+  }
+
   /**
    * Format phone number to E.164 format (+919876543210)
    */
@@ -32,25 +93,15 @@ export class AuthService {
       };
     }
 
-    if (!isSupabaseConfigured()) {
-      console.info('Supabase credentials not configured. Operating in dev simulation mode for phone auth:', formatted);
-      return {
-        success: true,
-        message: 'OTP sent successfully (Dev Mode: Use 123456 as code).'
-      };
-    }
-
     try {
       const { error } = await supabase.auth.signInWithOtp({
         phone: formatted,
       });
 
       if (error) {
-        console.warn('Supabase SMS OTP Error:', error.message);
-        // Fallback for dev testing if Supabase SMS provider isn't enabled yet
         return {
-          success: true,
-          message: `OTP sent to ${formatted} (Dev fallback enabled).`
+          success: false,
+          message: error.message
         };
       }
 
@@ -80,23 +131,6 @@ export class AuthService {
       };
     }
 
-    if (!isSupabaseConfigured()) {
-      // Dev mode verification
-      if (cleanedToken === '123456' || cleanedToken.length === 6) {
-        const mockUser = { id: `usr-${Date.now()}`, phone: formatted };
-        return {
-          success: true,
-          user: mockUser,
-          session: { access_token: 'mock-token', user: mockUser }
-        };
-      } else {
-        return {
-          success: false,
-          message: 'Invalid OTP code. For dev mode, use 123456.'
-        };
-      }
-    }
-
     try {
       const { data, error } = await supabase.auth.verifyOtp({
         phone: formatted,
@@ -105,25 +139,23 @@ export class AuthService {
       });
 
       if (error) {
-        // Dev fallback if token verification fails on placeholder config
-        if (cleanedToken === '123456') {
-          const mockUser = { id: `usr-${Date.now()}`, phone: formatted };
-          return {
-            success: true,
-            user: mockUser,
-            session: { access_token: 'mock-token', user: mockUser }
-          };
-        }
         return {
           success: false,
-          message: error.message || 'OTP verification failed. Code may be expired or incorrect.'
+          message: error.message
+        };
+      }
+
+      if (!data.session) {
+        return {
+          success: false,
+          message: 'Authentication succeeded but no session was returned.'
         };
       }
 
       return {
         success: true,
-        user: data.user,
-        session: data.session
+        user: data.session.user,
+        session: data.session,
       };
     } catch (err: any) {
       return {
@@ -137,7 +169,6 @@ export class AuthService {
    * Get current Supabase auth session
    */
   public async getSession() {
-    if (!isSupabaseConfigured()) return null;
     const { data } = await supabase.auth.getSession();
     return data.session;
   }
@@ -146,9 +177,7 @@ export class AuthService {
    * Sign out current user
    */
   public async signOut(): Promise<void> {
-    if (isSupabaseConfigured()) {
-      await supabase.auth.signOut();
-    }
+    await supabase.auth.signOut();
   }
 }
 

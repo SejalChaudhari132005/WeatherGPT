@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Phone, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, LockKeyhole, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 export const PhoneAuthScreen: React.FC = () => {
-  const { sendOtp, isSubmitting, errorMessage, goToStep } = useAuth();
-  const [phoneInput, setPhoneInput] = useState('');
+  const { loginWithEmail, signUpWithEmail, signInWithGoogle, isSubmitting, errorMessage, goToStep } = useAuth();
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phoneInput.trim()) return;
-    await sendOtp(phoneInput);
+    if (!emailInput.trim() || !passwordInput) return;
+    if (isSignUp) {
+      await signUpWithEmail(emailInput.trim(), passwordInput);
+    } else {
+      await loginWithEmail(emailInput.trim(), passwordInput);
+    }
   };
 
   return (
@@ -25,31 +31,24 @@ export const PhoneAuthScreen: React.FC = () => {
           </button>
 
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">Let's get started</h2>
-          <p className="text-xs text-slate-500 mt-1 font-medium">Enter your mobile number to sign in or create an account</p>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Sign in to continue to WeatherGPT</p>
         </div>
 
         {/* Form Input */}
         <form onSubmit={handleSubmit} className="my-auto space-y-4 py-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Mobile Number</label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Email</label>
+            <div className="relative">
+              <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} placeholder="Enter your email" className="w-full pl-4 pr-11 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-base font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 shadow-2xs transition-all" autoFocus />
+              <Mail className="w-5 h-5 text-slate-400 absolute right-3.5 top-4" />
+            </div>
+          </div>
 
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-3.5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 shadow-2xs shrink-0">
-                <span>🇮🇳</span>
-                <span>+91</span>
-              </div>
-
-              <div className="relative flex-1">
-                <input
-                  type="tel"
-                  value={phoneInput}
-                  onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="98765 43210"
-                  className="w-full pl-4 pr-10 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-base font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 shadow-2xs transition-all"
-                  autoFocus
-                />
-                <Phone className="w-5 h-5 text-slate-400 absolute right-3.5 top-4" />
-              </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Password</label>
+            <div className="relative">
+              <input type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} placeholder="Enter your password" className="w-full pl-4 pr-11 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-base font-bold text-slate-900 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 shadow-2xs transition-all" />
+              <LockKeyhole className="w-5 h-5 text-slate-400 absolute right-3.5 top-4" />
             </div>
           </div>
 
@@ -60,30 +59,36 @@ export const PhoneAuthScreen: React.FC = () => {
             </div>
           )}
 
-          <div className="p-3 bg-sky-50 rounded-2xl border border-sky-100 text-[11px] text-sky-800 font-medium leading-relaxed">
-            💡 For testing in development mode, enter any 10-digit mobile number and click <strong>Continue</strong>.
-          </div>
         </form>
 
         {/* Bottom Button */}
         <div>
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || phoneInput.length < 10}
+            disabled={isSubmitting || !emailInput.trim() || !passwordInput}
             className="w-full py-4 rounded-2xl bg-[#004aad] hover:bg-[#003882] disabled:bg-slate-300 active:scale-[0.98] text-white font-extrabold text-base shadow-lg shadow-blue-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer font-['Arimo']"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Sending Code...</span>
+                <span>{isSignUp ? 'Creating Account...' : 'Signing In...'}</span>
               </>
             ) : (
               <>
-                <span>Continue</span>
-                <ArrowRight className="w-5 h-5" />
+                <span>{isSignUp ? 'Sign Up' : 'Login'}</span>
               </>
             )}
           </button>
+          <button type="button" onClick={signInWithGoogle} disabled={isSubmitting} className="w-full py-3.5 mt-3 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm border border-slate-200 shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer">
+            <span className="font-black text-base">G</span>
+            <span>Continue with Google</span>
+          </button>
+          <p className="text-center text-xs text-slate-500 mt-4">
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button type="button" onClick={() => setIsSignUp((current) => !current)} className="font-bold text-sky-700 hover:text-sky-800">
+              {isSignUp ? 'Login' : 'Sign Up'}
+            </button>
+          </p>
         </div>
       </div>
     </div>

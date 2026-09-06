@@ -3,6 +3,7 @@ import { UserProfile, AuthStatus, OnboardingStep, UserRole } from '../types/user
 import { authService } from '../services/authService';
 import { profileService } from '../services/profileService';
 import { locationService } from '../services/locationService';
+import { saveGpsLocation } from '../services/locationApi';
 
 interface AuthContextType {
   authStatus: AuthStatus;
@@ -24,6 +25,9 @@ interface AuthContextType {
   handleSendOtp: (phone: string) => Promise<boolean>;
   handleVerifyOtp: (token: string) => Promise<boolean>;
   handleResendOtp: () => Promise<void>;
+  handleEmailLogin: (email: string, password: string) => Promise<boolean>;
+  handleEmailSignUp: (email: string, password: string) => Promise<boolean>;
+  handleGoogleSignIn: () => Promise<boolean>;
   handleSaveUsername: (username: string) => Promise<void>;
   handleSaveRole: (role: UserRole) => Promise<void>;
   handleSaveLocationGps: () => Promise<boolean>;
@@ -79,19 +83,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             else setOnboardingStep('LOCATION');
           }
         } else {
-          // Check local stored session for offline dev mode
-          const localProf = localStorage.getItem('weathergpt_user_profile');
-          if (localProf) {
-            const parsed: UserProfile = JSON.parse(localProf);
-            if (profileService.isProfileComplete(parsed)) {
-              setUserId(parsed.user_id);
-              setUserProfile(parsed);
-              setAuthStatus('PROFILE_COMPLETE');
-              setOnboardingStep('COMPLETE');
-              return;
-            }
-          }
-
           setAuthStatus('UNAUTHENTICATED');
           setOnboardingStep('WELCOME');
         }
@@ -158,13 +149,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await handleSendOtp(phoneNumber);
   };
 
-  const handleSaveUsername = async (username: string) => {
-    if (!username.trim()) return;
-    const uid = userId || `usr-${Date.now()}`;
+  const continueWithSession = async (session: any): Promise<boolean> => {
+    if (!session?.user) {
+      setErrorMessage('Authentication succeeded but no user session was returned.');
+      return false;
+    }
+
+    const uid = session.user.id;
     setUserId(uid);
+    setPhoneNumber(session.user.phone || '');
+
+    const existing = await profileService.getProfile(uid);
+    if (existing) {
+      setUserProfile(existing);
+      if (profileService.isProfileComplete(existing)) {
+        setAuthStatus('PROFILE_COMPLETE');
+        setOnboardingStep('COMPLETE');
+        return true;
+      }
+    }
+
+    setAuthStatus('PROFILE_INCOMPLETE');
+    setOnboardingStep('USERNAME');
+    return true;
+  };
+
+  const handleEmailLogin = async (email: string, password: string): Promise<boolean> => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    const result = await authService.signInWithEmail(email, password);
+    if (!result.success) {
+      setIsSubmitting(false);
+      setErrorMessage(result.message || 'Unable to sign in.');
+      return false;
+    }
+
+    const success = await continueWithSession(result.session);
+    setIsSubmitting(false);
+    return success;
+  };
+
+  const handleEmailSignUp = async (email: string, password: string): Promise<boolean> => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    const result = await authService.signUpWithEmail(email, password);
+    if (!result.success) {
+      setIsSubmitting(false);
+      setErrorMessage(result.message || 'Unable to create your account.');
+      return false;
+    }
+
+    const success = await continueWithSession(result.session);
+    setIsSubmitting(false);
+    return success;
+  };
+
+  const handleGoogleSignIn = async (): Promise<boolean> => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    const result = await authService.signInWithGoogle();
+    setIsSubmitting(false);
+    if (!result.success) {
+      setErrorMessage(result.message || 'Unable to continue with Google.');
+    }
+    return result.success;
+  };
+
+  const handleSaveUsername = async (username: string) => {
+    if (!username.trim() || !userId) {
+      setErrorMessage('You must be authenticated to save your profile.');
+      return;
+    }
 
     const updated = await profileService.upsertProfile({
-      user_id: uid,
+      user_id: userId,
       phone: phoneNumber,
       username: username.trim(),
       role: userProfile?.role || 'citizen',
@@ -192,26 +250,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const coords = await locationService.getCurrentPosition();
       const resolved = await locationService.reverseGeocode(coords.latitude, coords.longitude);
 
-      if (!userId) return false;
+      const result = await saveGpsLocation(
+        coords.latitude,
+        coords.longitude,
+        {
+          city: resolved.city,
+          district: resolved.district,
+          state: resolved.state,
+          country: resolved.country,
+        }
+      );
 
-      const updated = await profileService.upsertProfile({
-        user_id: userId,
-        latitude: resolved.latitude,
-        longitude: resolved.longitude,
-        city: resolved.city,
-        district: resolved.district,
-        state: resolved.state,
-        country: resolved.country,
-        location_source: 'gps',
-      });
-
-      setUserProfile(updated);
+      setUserProfile(result.profile);
       setIsSubmitting(false);
       setOnboardingStep('LOCATION_CONFIRM');
       return true;
     } catch (err: any) {
       setIsSubmitting(false);
-      setErrorMessage(err.message || 'Location permission denied or timed out.');
+      setErrorMessage(err.message || 'Unable to save your location.');
       return false;
     }
   };
@@ -276,6 +332,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleSendOtp,
         handleVerifyOtp,
         handleResendOtp,
+        handleEmailLogin,
+        handleEmailSignUp,
+        handleGoogleSignIn,
         handleSaveUsername,
         handleSaveRole,
         handleSaveLocationGps,

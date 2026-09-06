@@ -92,9 +92,6 @@ export const OtpVerificationScreen: React.FC = () => {
             </div>
           )}
 
-          <div className="p-3 bg-sky-50 rounded-2xl border border-sky-100 text-[11px] text-sky-800 font-medium leading-relaxed">
-            💡 Dev Testing Code: Enter <strong>123456</strong> to verify.
-          </div>
         </form>
 
         {/* Bottom Verify Action */}

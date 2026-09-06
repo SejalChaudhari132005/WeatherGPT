@@ -32,6 +32,7 @@ import { ClimatePage } from './pages/ClimatePage';
 import { WhatIfPage } from './pages/WhatIfPage';
 import { TravelPage } from './pages/TravelPage';
 import { EmergencyPage } from './pages/EmergencyPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { Loader2 } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
@@ -75,6 +76,8 @@ const MainAppContent: React.FC = () => {
         return <TravelPage />;
       case 'emergency':
         return <EmergencyPage />;
+      case 'profile':
+        return <ProfilePage />;
       default:
         return (
           <div className="space-y-2 pb-12">

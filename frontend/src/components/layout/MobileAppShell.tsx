@@ -1,5 +1,5 @@
 import React from 'react';
-import { CloudSun, Wind, Activity, Bell, Sparkles, MessageSquare, Radar, MapPin, Sliders, AlertTriangle } from 'lucide-react';
+import { CloudSun, Activity, Bell, MessageSquare, Radar, UserRound, AlertTriangle } from 'lucide-react';
 import { useUI, ActiveTab } from '../../context/UIContext';
 import { useWeather } from '../../context/WeatherContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -15,6 +15,7 @@ export const MobileAppShell: React.FC<{ children: React.ReactNode }> = ({ childr
     { id: 'ask', label: 'ask gpt', icon: MessageSquare }, // Center Logo Button
     { id: 'alerts', label: 'alerts', icon: AlertTriangle },
     { id: 'radar', label: 'map radar', icon: Radar },
+    { id: 'profile', label: 'profile', icon: UserRound },
   ];
 
   return (

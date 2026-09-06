@@ -4,7 +4,7 @@ import { Conversation, ChatMessage, PromptSuggestion, WeatherDataPayload } from 
 const LOCAL_CONVERSATIONS_KEY = 'weathergpt_conversations';
 const LOCAL_MESSAGES_KEY_PREFIX = 'weathergpt_messages_';
 
-// Helper to access LocalStorage for Dev Fallback
+// Helper to access local storage for unavailable chat data
 const getLocalConversations = (userId: string): Conversation[] => {
   try {
     const raw = localStorage.getItem(`${LOCAL_CONVERSATIONS_KEY}_${userId}`);
