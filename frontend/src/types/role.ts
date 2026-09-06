@@ -7,16 +7,6 @@ export type UserRole =
   | 'Urban Planner'
   | 'Researcher';
 
-export const ALL_ROLES: { id: string; title: string; icon: string }[] = [
-  { id: 'citizen', title: 'Citizen / General Public', icon: '🚗' },
-  { id: 'farmer', title: 'Farmer / Agricultural', icon: '🌾' },
-  { id: 'fisher', title: 'Fisherfolk / Marine', icon: '🎣' },
-  { id: 'disaster_manager', title: 'Disaster Manager', icon: '🚨' },
-  { id: 'urban_planner', title: 'Urban Planner', icon: '🏗️' },
-  { id: 'researcher', title: 'Researcher / Climate Analyst', icon: '📈' },
-  { id: 'aviation', title: 'Aviation', icon: '✈️' },
-];
-
 export interface FarmerAdvisoryData {
   crop: string;
   rainOutlook: string;

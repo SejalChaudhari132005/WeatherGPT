@@ -24,7 +24,7 @@ export class WeatherService {
    * Returns hyperlocal risks around the user's GPS location
    */
   public async getHyperlocalRisks(location: UserLocation): Promise<HyperlocalRisk[]> {
-    return MOCK_HYPERLOCAL_RISKS.map((risk: any, index: number) => {
+    return MOCK_HYPERLOCAL_RISKS.map((risk, index) => {
       if (index === 0) {
         return {
           ...risk,

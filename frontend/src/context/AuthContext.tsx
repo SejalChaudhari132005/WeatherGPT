@@ -19,7 +19,6 @@ interface AuthContextType {
   errorMessage: string | null;
   setErrorMessage: (msg: string | null) => void;
   userProfile: UserProfile | null;
-  profile: UserProfile | null;
 
   // Actions
   handleSendOtp: (phone: string) => Promise<boolean>;
@@ -31,8 +30,6 @@ interface AuthContextType {
   handleSaveLocationManual: (cityOption: any) => Promise<void>;
   handleConfirmOnboarding: () => Promise<void>;
   handleSignOut: () => Promise<void>;
-  signOut: () => Promise<void>;
-  updateProfile: (partial: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -258,16 +255,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOnboardingStep('WELCOME');
   };
 
-  const updateProfile = async (partial: Partial<UserProfile>) => {
-    if (!userId) return;
-    const updated = await profileService.upsertProfile({
-      user_id: userId,
-      ...userProfile,
-      ...partial,
-    });
-    setUserProfile(updated);
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -285,7 +272,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         errorMessage,
         setErrorMessage,
         userProfile,
-        profile: userProfile,
 
         handleSendOtp,
         handleVerifyOtp,
@@ -296,8 +282,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleSaveLocationManual,
         handleConfirmOnboarding,
         handleSignOut,
-        signOut: handleSignOut,
-        updateProfile,
       }}
     >
       {children}
