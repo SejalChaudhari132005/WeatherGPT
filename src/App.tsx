@@ -1,21 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LanguageProvider } from './context/LanguageContext';
-import { UIProvider, useUI } from './context/UIContext';
+import { UIProvider } from './context/UIContext';
 import { WeatherProvider } from './context/WeatherContext';
 import { AuthProvider, useAuthContext } from './context/AuthContext';
 
-import { MobileAppShell } from './components/layout/MobileAppShell';
-import { MobileHeroWeatherCard } from './components/dashboard/MobileHeroWeatherCard';
-import { MobileEarlyWarningsCard } from './components/dashboard/MobileEarlyWarningsCard';
-import { MobileRadarMapScreen } from './components/radar/MobileRadarMapScreen';
-import { AskWeatherGPTCard } from './components/dashboard/AskWeatherGPTCard';
-import { RoleBasedAdvisoryCard } from './components/dashboard/RoleBasedAdvisoryCard';
-import { FarmerAdvisory } from './components/roles/FarmerAdvisory';
-import { FisherAdvisory } from './components/roles/FisherAdvisory';
-
-import { LocationSelectorModal } from './components/location/LocationSelectorModal';
-import { VoiceModal } from './components/common/VoiceModal';
-import { ExplainableAIModal } from './components/common/ExplainableAIModal';
+import { ChatSidebar } from './components/sidebar/ChatSidebar';
+import { ChatPage } from './pages/ChatPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { MapPage } from './pages/MapPage';
+import { AlertsPage } from './pages/AlertsPage';
+import { ClimatePage } from './pages/ClimatePage';
+import { ProfilePage } from './pages/ProfilePage';
+import { SettingsPage } from './pages/SettingsPage';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
 import { WelcomeScreen } from './components/onboarding/WelcomeScreen';
@@ -27,72 +23,107 @@ import { RoleConfirmationScreen } from './components/onboarding/RoleConfirmation
 import { LocationSetupScreen } from './components/onboarding/LocationSetupScreen';
 import { LocationConfirmationScreen } from './components/onboarding/LocationConfirmationScreen';
 
-import { AlertsPage } from './pages/AlertsPage';
-import { ClimatePage } from './pages/ClimatePage';
-import { WhatIfPage } from './pages/WhatIfPage';
-import { TravelPage } from './pages/TravelPage';
-import { EmergencyPage } from './pages/EmergencyPage';
+import { Conversation, ActiveNavPage } from './types/chat';
+import { chatService } from './services/chatService';
 import { Loader2 } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
-  const { activeTab, emergencyMode } = useUI();
+  const { profile } = useAuthContext();
+  const userId = profile?.user_id || 'dev_user';
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeNavPage, setActiveNavPage] = useState<ActiveNavPage>('dashboard');
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>('');
+
+  // Fetch user conversations from Supabase / LocalStorage
+  const loadConversations = useCallback(async () => {
+    const list = await chatService.fetchConversations(userId);
+    setConversations(list);
+    if (!activeConversationId && list.length > 0) {
+      setActiveConversationId(list[0].id);
+    }
+  }, [userId, activeConversationId]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  const handleNewChat = async () => {
+    setActiveConversationId('');
+    setActiveNavPage('chat');
+  };
 
   const renderActivePage = () => {
-    if (emergencyMode) return <EmergencyPage />;
-
-    switch (activeTab) {
-      case 'home':
+    switch (activeNavPage) {
+      case 'chat':
         return (
-          <div className="space-y-2 pb-12">
-            <MobileHeroWeatherCard />
-            <MobileEarlyWarningsCard />
-            <RoleBasedAdvisoryCard />
-          </div>
+          <ChatPage
+            onOpenSidebar={() => setSidebarOpen(true)}
+            activeConversationId={activeConversationId}
+            onSelectConversation={(id) => setActiveConversationId(id)}
+            onNavigate={(page) => setActiveNavPage(page)}
+            conversations={conversations}
+            onRefreshConversations={loadConversations}
+          />
         );
-      case 'ask':
+      case 'dashboard':
         return (
-          <div className="p-4 space-y-4 pb-12">
-            <AskWeatherGPTCard />
-          </div>
+          <DashboardPage
+            onBack={() => setActiveNavPage('chat')}
+            onNavigatePage={(page) => setActiveNavPage(page)}
+            onOpenChatWithPrompt={(prompt) => {
+              setActiveNavPage('chat');
+            }}
+          />
         );
-      case 'advisories':
-        return (
-          <div className="p-4 space-y-4 pb-12">
-            <RoleBasedAdvisoryCard />
-            <FarmerAdvisory />
-            <FisherAdvisory />
-          </div>
-        );
+      case 'map':
+        return <MapPage onBack={() => setActiveNavPage('chat')} />;
       case 'alerts':
-        return <AlertsPage />;
-      case 'radar':
-        return <MobileRadarMapScreen />;
+        return <AlertsPage onBack={() => setActiveNavPage('chat')} />;
       case 'climate':
-        return <ClimatePage />;
-      case 'whatif':
-        return <WhatIfPage />;
-      case 'travel':
-        return <TravelPage />;
-      case 'emergency':
-        return <EmergencyPage />;
+        return <ClimatePage onBack={() => setActiveNavPage('chat')} />;
+      case 'profile':
+        return <ProfilePage onBack={() => setActiveNavPage('chat')} />;
+      case 'settings':
+        return <SettingsPage onBack={() => setActiveNavPage('chat')} />;
       default:
         return (
-          <div className="space-y-2 pb-12">
-            <MobileHeroWeatherCard />
-            <MobileEarlyWarningsCard />
-          </div>
+          <ChatPage
+            onOpenSidebar={() => setSidebarOpen(true)}
+            activeConversationId={activeConversationId}
+            onSelectConversation={(id) => setActiveConversationId(id)}
+            onNavigate={(page) => setActiveNavPage(page)}
+            conversations={conversations}
+            onRefreshConversations={loadConversations}
+          />
         );
     }
   };
 
   return (
-    <MobileAppShell>
-      <LocationSelectorModal />
-      <VoiceModal />
-      <ExplainableAIModal />
+    <div className="min-h-screen bg-[#F4F7FC] flex flex-col font-['Arimo'] antialiased selection:bg-[#38b6ff] selection:text-white w-full max-w-full overflow-x-hidden">
       <PwaInstallPrompt />
-      {renderActivePage()}
-    </MobileAppShell>
+
+      {/* Navigation Sidebar & Drawer */}
+      <ChatSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        onSelectConversation={(id) => setActiveConversationId(id)}
+        onNewChat={handleNewChat}
+        onRenameConversation={() => {}}
+        onDeleteConversation={() => {}}
+        activeNavPage={activeNavPage}
+        onNavigate={(page) => setActiveNavPage(page)}
+      />
+
+      {/* Main View Area */}
+      <div className="flex-1 flex flex-col md:pl-72 transition-all w-full max-w-full overflow-x-hidden">
+        {renderActivePage()}
+      </div>
+    </div>
   );
 };
 
@@ -103,7 +134,7 @@ const RootRouter: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-center">
         <div className="p-6 bg-slate-900 rounded-3xl border border-slate-800 flex flex-col items-center gap-3 text-white">
-          <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
+          <Loader2 className="w-8 h-8 text-[#38b6ff] animate-spin" />
           <span className="text-xs font-bold uppercase tracking-wider">Loading WeatherGPT Session...</span>
         </div>
       </div>
