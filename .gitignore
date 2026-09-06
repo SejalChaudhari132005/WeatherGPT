@@ -22,3 +22,8 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+
+.env
+backend/.env
+frontend/.env
+
