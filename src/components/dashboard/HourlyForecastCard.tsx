@@ -1,63 +1,75 @@
-import React from 'react';
-import { CloudRain, Sun, Cloud, CloudLightning, Clock, AlertTriangle } from 'lucide-react';
-import { useWeather } from '../../context/WeatherContext';
-import { WeatherCondition } from '../../types/weather';
+import React, { useState } from 'react';
+import { Sun, CloudRain, Cloud, Thermometer, Wind, Umbrella } from 'lucide-react';
 
 export const HourlyForecastCard: React.FC = () => {
-  const { hourlyForecast } = useWeather();
+  const [activeFilter, setActiveFilter] = useState<'temp' | 'wind' | 'rain'>('temp');
 
-  const getConditionIcon = (cond: WeatherCondition) => {
-    switch (cond) {
-      case 'Sunny':
-      case 'Clear':
-        return <Sun className="w-6 h-6 text-amber-500" />;
-      case 'Thunderstorm':
-        return <CloudLightning className="w-6 h-6 text-purple-600 animate-pulse" />;
-      case 'Heavy Rain':
-      case 'Light Rain':
-        return <CloudRain className="w-6 h-6 text-sky-500" />;
-      default:
-        return <Cloud className="w-6 h-6 text-slate-400" />;
-    }
-  };
+  const timeNodes = [
+    { period: 'Morning', time: '8:00 AM', temp: 20, icon: <Sun className="w-5 h-5 text-amber-500" /> },
+    { period: 'Afternoon', time: '1:00 PM', temp: 24, icon: <Sun className="w-5 h-5 text-amber-500" /> },
+    { period: 'Evening', time: '6:00 PM', temp: 28, icon: <CloudRain className="w-5 h-5 text-sky-500" /> },
+    { period: 'Night', time: '10:00 PM', temp: 22, icon: <Cloud className="w-5 h-5 text-slate-400" /> },
+    { period: 'Late Night', time: '2:00 AM', temp: 19, icon: <Cloud className="w-5 h-5 text-slate-400" /> },
+  ];
 
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-md border border-slate-200/80">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Clock className="w-5 h-5 text-sky-600" />
-          <h3 className="text-lg font-bold text-slate-900">Today's Hourly Forecast</h3>
+    <div className="bg-white rounded-[28px] p-5 sm:p-6 shadow-sm border border-slate-200/60 flex flex-col justify-between">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-sm sm:text-base font-extrabold text-slate-900">Today's Temperature</h3>
+          <p className="text-[11px] text-slate-400 font-medium sm:hidden">Swipe to explore timeline</p>
         </div>
-        <span className="text-xs font-semibold text-slate-400">High Risk Period Highlighted</span>
+
+        {/* Filter Pill Icons */}
+        <div className="flex items-center gap-1 p-1 bg-slate-100/80 rounded-2xl border border-slate-200/60">
+          <button
+            onClick={() => setActiveFilter('temp')}
+            className={`p-2 rounded-xl text-xs font-bold transition-all ${
+              activeFilter === 'temp' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="Temperature"
+          >
+            <Thermometer className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => setActiveFilter('wind')}
+            className={`p-2 rounded-xl text-xs font-bold transition-all ${
+              activeFilter === 'wind' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="Wind"
+          >
+            <Wind className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            onClick={() => setActiveFilter('rain')}
+            className={`p-2 rounded-xl text-xs font-bold transition-all ${
+              activeFilter === 'rain' ? 'bg-orange-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="Precipitation"
+          >
+            <Umbrella className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
-        {hourlyForecast.map((hour, idx) => (
+      {/* Horizontal Swipeable Mobile Carousel / Desktop Grid */}
+      <div className="flex sm:grid sm:grid-cols-4 gap-3 overflow-x-auto snap-x snap-mandatory pt-2 pb-1 no-scrollbar">
+        {timeNodes.map((node, idx) => (
           <div
             key={idx}
-            className={`min-w-28 p-4 rounded-2xl border flex flex-col items-center justify-between text-center transition-all ${
-              hour.isHighRisk
-                ? 'bg-gradient-to-b from-rose-50 to-amber-50 border-rose-300 shadow-md shadow-rose-500/10'
-                : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100/80'
-            }`}
+            className="min-w-[90px] sm:min-w-0 snap-center p-3 sm:p-2.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col items-center justify-between text-center space-y-2 shrink-0 sm:shrink"
           >
-            <span className="text-xs font-bold text-slate-500 mb-1">{hour.time}</span>
-
-            <div className="my-2">{getConditionIcon(hour.condition)}</div>
-
-            <span className="text-lg font-black text-slate-900">{hour.temperature}°</span>
-
-            <div className="flex items-center gap-1 text-[11px] font-bold text-sky-600 mt-2">
-              <CloudRain className="w-3 h-3" />
-              <span>{hour.rainProbability}%</span>
+            <div className="p-2.5 rounded-full bg-white shadow-2xs">
+              {node.icon}
             </div>
 
-            {hour.isHighRisk && (
-              <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500 text-white text-[9px] font-extrabold uppercase tracking-wider">
-                <AlertTriangle className="w-2.5 h-2.5" />
-                <span>Heavy Rain</span>
-              </div>
-            )}
+            <div>
+              <div className="text-base sm:text-xl font-black text-slate-900">{node.temp}°</div>
+              <div className="text-[11px] font-bold text-slate-600 mt-0.5">{node.period}</div>
+              <div className="text-[10px] text-slate-400 font-medium">{node.time}</div>
+            </div>
           </div>
         ))}
       </div>

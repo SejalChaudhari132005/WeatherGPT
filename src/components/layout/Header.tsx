@@ -1,67 +1,56 @@
-import React from 'react';
-import { MapPin, Mic, Search, Bell, User, Sparkles, Globe, Radio } from 'lucide-react';
+import React, { useState } from 'react';
+import { MapPin, Search, Mic, Bell, User, Radio, Globe, Sun, ChevronDown } from 'lucide-react';
 import { useUI } from '../../context/UIContext';
 import { useWeather } from '../../context/WeatherContext';
-import { useLanguage } from '../../context/LanguageContext';
+import { useLanguage, LANGUAGES, LanguageCode } from '../../context/LanguageContext';
 import { DemoBadge } from '../common/DemoBadge';
 
 export const Header: React.FC = () => {
   const { setLocationModalOpen, setVoiceModalOpen, sidebarOpen } = useUI();
   const { userLocation } = useWeather();
-  const { t, language } = useLanguage();
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return t('goodMorning');
-    if (hour < 17) return t('goodAfternoon');
-    return t('goodEvening');
-  };
+  const { language, setLanguage } = useLanguage();
 
   const formattedLocation = userLocation
     ? `${userLocation.city}, ${userLocation.state}`
     : 'Mumbai, Maharashtra';
 
   return (
-    <header
-      className={`sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/70 transition-all duration-300 ${
-        sidebarOpen ? 'md:ml-64' : 'md:ml-20'
-      }`}
-    >
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 md:ml-64 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
-        {/* Left: Greeting & Location */}
+        {/* Left: Location Dropdown Pill */}
         <div className="flex items-center gap-3">
-          {/* Location Trigger */}
           <button
             onClick={() => setLocationModalOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-sky-50 hover:bg-sky-100/80 border border-sky-200/80 text-sky-900 transition-all group cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-sky-50 hover:bg-sky-100/80 border border-sky-200/80 text-sky-900 transition-all cursor-pointer group"
           >
-            <MapPin className="w-4 h-4 text-sky-600 group-hover:scale-110 transition-transform" />
+            <div className="p-1 rounded-lg bg-sky-600 text-white">
+              <MapPin className="w-3.5 h-3.5" />
+            </div>
             <div className="text-left">
-              <div className="text-[10px] text-sky-600 font-bold uppercase tracking-wider leading-none">
-                Current Location
+              <div className="text-[9px] text-sky-600 font-black uppercase tracking-wider leading-none">
+                CURRENT LOCATION
               </div>
-              <div className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1">
+              <div className="text-xs sm:text-sm font-extrabold text-slate-800 flex items-center gap-1">
                 {formattedLocation}
-                <span className="text-[10px] text-sky-500">▼</span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:translate-y-0.5 transition-transform" />
               </div>
             </div>
           </button>
         </div>
 
-        {/* Center: Search trigger */}
-        <div className="hidden lg:flex items-center flex-1 max-w-md mx-4">
+        {/* Center: Search Bar */}
+        <div className="hidden lg:flex items-center flex-1 max-w-sm mx-2">
           <div
             onClick={() => setLocationModalOpen(true)}
             className="w-full relative flex items-center bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-2xl px-3.5 py-2 cursor-pointer transition-colors"
           >
-            <Search className="w-4 h-4 text-slate-400 mr-2.5" />
+            <Search className="w-4 h-4 text-slate-400 mr-2" />
             <span className="text-xs text-slate-400 font-medium">Search city, pincode or location...</span>
           </div>
         </div>
 
         {/* Right side controls */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Live Indicator & Demo Badge */}
           <div className="hidden sm:flex items-center gap-2">
             <DemoBadge label="DEMO MODE" variant="amber" />
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200/60">
@@ -70,24 +59,39 @@ export const Header: React.FC = () => {
             </div>
           </div>
 
-          {/* Voice Microphone Trigger Button */}
+          {/* Language Selector */}
+          <div className="relative flex items-center">
+            <Globe className="w-4 h-4 text-slate-400 absolute left-2 pointer-events-none" />
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as LanguageCode)}
+              className="pl-7 pr-2 py-2 bg-slate-100/80 border border-slate-200 text-slate-700 text-xs rounded-xl font-bold focus:outline-none cursor-pointer"
+            >
+              {LANGUAGES.slice(0, 3).map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.nativeName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Voice Microphone */}
           <button
             onClick={() => setVoiceModalOpen(true)}
-            className="p-2.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white shadow-md shadow-sky-600/25 transition-all transform active:scale-95 flex items-center justify-center gap-1.5 text-xs font-bold"
+            className="p-2.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white shadow-md shadow-sky-600/20 transition-all cursor-pointer"
             title="Voice Assistant"
           >
             <Mic className="w-4 h-4" />
-            <span className="hidden md:inline">Voice</span>
           </button>
 
           {/* Notifications */}
-          <button className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors relative">
+          <button className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors relative cursor-pointer">
             <Bell className="w-4 h-4" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
           </button>
 
           {/* Profile */}
-          <div className="p-2 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center">
+          <div className="p-2 rounded-2xl bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center cursor-pointer">
             <User className="w-4 h-4" />
           </div>
         </div>

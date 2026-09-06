@@ -19,23 +19,24 @@ export const RoleBasedAdvisoryCard: React.FC = () => {
   ];
 
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-md border border-slate-200/80 space-y-4">
+    <div className="bg-white rounded-[28px] p-5 sm:p-6 shadow-sm border border-slate-200/60 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Tailored Weather Intelligence</h3>
-          <p className="text-xs text-slate-500">Switch persona to adjust advisory parameters and recommendations</p>
+          <h3 className="text-base font-extrabold text-slate-900">WeatherGPT For You</h3>
+          <p className="text-[11px] text-slate-400 font-medium">Tap role to customize advisories</p>
         </div>
 
         <button
           onClick={() => setActiveTab('advisories')}
-          className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1"
+          className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer shrink-0"
         >
-          <span>View All</span>
+          <span>All Advisories</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+      {/* Horizontal Scroll Chips on Mobile / Responsive Grid on Desktop */}
+      <div className="flex sm:grid sm:grid-cols-4 lg:grid-cols-7 gap-2.5 overflow-x-auto snap-x snap-mandatory py-1 no-scrollbar">
         {roles.map((r) => {
           const Icon = r.icon;
           const isSelected = activeRole === r.id;
@@ -48,14 +49,14 @@ export const RoleBasedAdvisoryCard: React.FC = () => {
                   setActiveTab('advisories');
                 }
               }}
-              className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+              className={`min-w-[130px] sm:min-w-0 snap-center p-3 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer shrink-0 sm:shrink ${
                 isSelected
-                  ? `${r.color} ring-2 ring-sky-500/40 shadow-sm font-bold scale-[1.02]`
+                  ? `${r.color} ring-2 ring-sky-500/40 shadow-xs font-bold scale-[1.02]`
                   : 'bg-slate-50 border-slate-200/70 text-slate-700 hover:bg-slate-100'
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <Icon className="w-5 h-5" />
+              <div className="flex items-center justify-between mb-1.5">
+                <Icon className="w-4 h-4" />
                 {isSelected && <span className="w-2 h-2 rounded-full bg-current"></span>}
               </div>
               <div>

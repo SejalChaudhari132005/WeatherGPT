@@ -1,93 +1,100 @@
 import React from 'react';
-import { CloudRain, Wind, Droplets, Eye, Gauge, Thermometer, Sun, MapPin } from 'lucide-react';
+import { CloudSun, Wind, Activity, Eye, Gauge, MapPin } from 'lucide-react';
 import { useWeather } from '../../context/WeatherContext';
-import { useUI } from '../../context/UIContext';
 
 export const HeroWeatherCard: React.FC = () => {
   const { currentWeather, userLocation } = useWeather();
-  const { simpleMode } = useUI();
 
-  const locationName = userLocation
-    ? `${userLocation.city}, ${userLocation.state}`
-    : 'Mumbai, Maharashtra';
+  const cityUppercase = (userLocation?.city || 'Mumbai').toUpperCase();
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-500 via-sky-600 to-blue-700 text-white p-6 sm:p-8 shadow-xl shadow-sky-600/20 border border-sky-400/30">
-      {/* Decorative cloud illustration background effects */}
-      <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-      <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-900/20 rounded-full blur-2xl pointer-events-none"></div>
-
-      <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        {/* Left main metrics */}
-        <div className="space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold border border-white/20">
-            <MapPin className="w-3.5 h-3.5" />
-            <span>{locationName}</span>
+    <div className="space-y-4">
+      {/* Primary Vibrant Weather Card */}
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-sky-500 via-sky-600 to-blue-700 text-white p-6 shadow-xl shadow-sky-600/20 border border-sky-400/30 flex flex-col justify-between min-h-[260px]">
+        {/* Top Location */}
+        <div className="flex items-center justify-between z-10">
+          <div>
+            <span className="text-xs font-black uppercase tracking-wider text-sky-100 block">
+              {cityUppercase}
+            </span>
+            <span className="text-[11px] font-medium text-sky-200 block">
+              Current conditions
+            </span>
           </div>
 
-          <div className="flex items-baseline gap-4">
-            <span className="text-6xl sm:text-7xl font-black tracking-tighter">
-              {currentWeather.temperature}°
-            </span>
-            <div className="flex flex-col">
-              <span className="text-xl font-bold tracking-tight">{currentWeather.condition}</span>
-              <span className="text-xs text-sky-100 font-medium">Feels like {currentWeather.feelsLike}°</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 text-xs font-medium text-sky-100 pt-1">
-            <span>High: {currentWeather.highTemp}°</span>
-            <span>•</span>
-            <span>Low: {currentWeather.lowTemp}°</span>
-            <span>•</span>
-            <span className="bg-emerald-400/20 text-emerald-100 px-2 py-0.5 rounded-md font-bold">
-              AQI {currentWeather.airQualityIndex} ({currentWeather.airQualityLabel})
-            </span>
+          <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20">
+            <CloudSun className="w-8 h-8 text-sky-100 animate-float" />
           </div>
         </div>
 
-        {/* Dynamic Weather Illustration */}
-        <div className="self-center md:self-auto p-4 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 shadow-inner flex items-center justify-center animate-float">
-          <CloudRain className="w-20 h-20 text-sky-100 drop-shadow-md" />
+        {/* Temperature & Condition */}
+        <div className="my-4 z-10">
+          <div className="flex items-baseline gap-2">
+            <span className="text-6xl font-black tracking-tight">{currentWeather.temperature}°</span>
+            <span className="text-2xl font-bold text-sky-100">C</span>
+          </div>
+          <p className="text-sm font-bold text-white mt-1">{currentWeather.condition}</p>
+          <p className="text-xs text-sky-200 font-medium">Feels like {currentWeather.feelsLike}°</p>
+        </div>
+
+        {/* Rain Probability Bar */}
+        <div className="z-10 pt-3 border-t border-white/20 space-y-1.5">
+          <div className="flex items-center justify-between text-xs font-bold">
+            <span className="text-sky-100">Rain probability</span>
+            <span className="text-white font-extrabold">{currentWeather.rainProbability}%</span>
+          </div>
+
+          <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-amber-400 to-amber-300 rounded-full transition-all duration-500"
+              style={{ width: `${currentWeather.rainProbability}%` }}
+            ></div>
+          </div>
         </div>
       </div>
 
-      {/* Grid of Weather Metrics */}
-      {!simpleMode && (
-        <div className="relative z-10 mt-8 pt-6 border-t border-white/15 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-            <div className="flex items-center gap-2 text-xs text-sky-100 mb-1">
-              <Droplets className="w-4 h-4 text-sky-200" />
-              <span>Humidity</span>
-            </div>
-            <p className="text-lg font-bold">{currentWeather.humidity}%</p>
+      {/* 4 Metric Cards Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Wind Speed */}
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/70 shadow-2xs space-y-1">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <Wind className="w-4 h-4 text-sky-600" />
+            <span>Wind Speed</span>
           </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-            <div className="flex items-center gap-2 text-xs text-sky-100 mb-1">
-              <Wind className="w-4 h-4 text-sky-200" />
-              <span>Wind Speed</span>
-            </div>
-            <p className="text-lg font-bold">{currentWeather.windSpeed} km/h</p>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-            <div className="flex items-center gap-2 text-xs text-sky-100 mb-1">
-              <Eye className="w-4 h-4 text-sky-200" />
-              <span>Visibility</span>
-            </div>
-            <p className="text-lg font-bold">{currentWeather.visibility} km</p>
-          </div>
-
-          <div className="p-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15">
-            <div className="flex items-center gap-2 text-xs text-sky-100 mb-1">
-              <Gauge className="w-4 h-4 text-sky-200" />
-              <span>Pressure</span>
-            </div>
-            <p className="text-lg font-bold">{currentWeather.pressure} hPa</p>
-          </div>
+          <p className="text-lg font-black text-slate-900">{currentWeather.windSpeed} <span className="text-xs font-bold text-slate-500">km/h</span></p>
+          <p className="text-[11px] font-semibold text-emerald-600">Gentle breeze</p>
         </div>
-      )}
+
+        {/* Air Quality */}
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/70 shadow-2xs space-y-1">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <Activity className="w-4 h-4 text-emerald-600" />
+            <span>Air Quality</span>
+          </div>
+          <p className="text-lg font-black text-emerald-600">{currentWeather.airQualityLabel}</p>
+          <p className="text-[11px] font-semibold text-emerald-600">Good for outdoors</p>
+        </div>
+
+        {/* Visibility */}
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/70 shadow-2xs space-y-1">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <Eye className="w-4 h-4 text-sky-600" />
+            <span>Visibility</span>
+          </div>
+          <p className="text-lg font-black text-slate-900">{currentWeather.visibility} <span className="text-xs font-bold text-slate-500">km</span></p>
+          <p className="text-[11px] font-semibold text-slate-500">Clear roadway</p>
+        </div>
+
+        {/* Pressure */}
+        <div className="p-4 rounded-2xl bg-white border border-slate-200/70 shadow-2xs space-y-1">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <Gauge className="w-4 h-4 text-indigo-600" />
+            <span>Pressure</span>
+          </div>
+          <p className="text-lg font-black text-slate-900">{currentWeather.pressure} <span className="text-xs font-bold text-slate-500">hPa</span></p>
+          <p className="text-[11px] font-semibold text-slate-500">Normal range</p>
+        </div>
+      </div>
     </div>
   );
 };

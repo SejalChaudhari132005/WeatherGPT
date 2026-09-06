@@ -1,47 +1,72 @@
 import React from 'react';
 import { LanguageProvider } from './context/LanguageContext';
 import { UIProvider, useUI } from './context/UIContext';
-import { WeatherProvider, useWeather } from './context/WeatherContext';
+import { WeatherProvider } from './context/WeatherContext';
+import { AuthProvider, useAuthContext } from './context/AuthContext';
 
-import { Header } from './components/layout/Header';
-import { Sidebar } from './components/layout/Sidebar';
-import { MobileNav } from './components/layout/MobileNav';
+import { MobileAppShell } from './components/layout/MobileAppShell';
+import { MobileHeroWeatherCard } from './components/dashboard/MobileHeroWeatherCard';
+import { MobileEarlyWarningsCard } from './components/dashboard/MobileEarlyWarningsCard';
+import { MobileRadarMapScreen } from './components/radar/MobileRadarMapScreen';
+import { AskWeatherGPTCard } from './components/dashboard/AskWeatherGPTCard';
+import { RoleBasedAdvisoryCard } from './components/dashboard/RoleBasedAdvisoryCard';
+import { FarmerAdvisory } from './components/roles/FarmerAdvisory';
+import { FisherAdvisory } from './components/roles/FisherAdvisory';
 
-import { WelcomeLocationModal } from './components/location/WelcomeLocationModal';
 import { LocationSelectorModal } from './components/location/LocationSelectorModal';
 import { VoiceModal } from './components/common/VoiceModal';
 import { ExplainableAIModal } from './components/common/ExplainableAIModal';
+import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
-import { DashboardPage } from './pages/DashboardPage';
-import { AskPage } from './pages/AskPage';
-import { RadarPage } from './pages/RadarPage';
+import { WelcomeScreen } from './components/onboarding/WelcomeScreen';
+import { PhoneAuthScreen } from './components/onboarding/PhoneAuthScreen';
+import { OtpVerificationScreen } from './components/onboarding/OtpVerificationScreen';
+import { ProfileSetupScreen } from './components/onboarding/ProfileSetupScreen';
+import { RoleSelectionScreen } from './components/onboarding/RoleSelectionScreen';
+import { RoleConfirmationScreen } from './components/onboarding/RoleConfirmationScreen';
+import { LocationSetupScreen } from './components/onboarding/LocationSetupScreen';
+import { LocationConfirmationScreen } from './components/onboarding/LocationConfirmationScreen';
+
 import { AlertsPage } from './pages/AlertsPage';
-import { AdvisoriesPage } from './pages/AdvisoriesPage';
 import { ClimatePage } from './pages/ClimatePage';
 import { WhatIfPage } from './pages/WhatIfPage';
 import { TravelPage } from './pages/TravelPage';
 import { EmergencyPage } from './pages/EmergencyPage';
+import { Loader2 } from 'lucide-react';
 
-const AppContent: React.FC = () => {
-  const { activeTab, simpleMode, emergencyMode, sidebarOpen } = useUI();
-  const { hasLocationBeenSet } = useWeather();
+const MainAppContent: React.FC = () => {
+  const { activeTab, emergencyMode } = useUI();
 
   const renderActivePage = () => {
     if (emergencyMode) return <EmergencyPage />;
 
     switch (activeTab) {
       case 'home':
-        return <DashboardPage />;
+        return (
+          <div className="space-y-2 pb-12">
+            <MobileHeroWeatherCard />
+            <MobileEarlyWarningsCard />
+            <RoleBasedAdvisoryCard />
+          </div>
+        );
       case 'ask':
-        return <AskPage />;
-      case 'live':
-        return <DashboardPage />;
-      case 'radar':
-        return <RadarPage />;
+        return (
+          <div className="p-4 space-y-4 pb-12">
+            <AskWeatherGPTCard />
+          </div>
+        );
+      case 'advisories':
+        return (
+          <div className="p-4 space-y-4 pb-12">
+            <RoleBasedAdvisoryCard />
+            <FarmerAdvisory />
+            <FisherAdvisory />
+          </div>
+        );
       case 'alerts':
         return <AlertsPage />;
-      case 'advisories':
-        return <AdvisoriesPage />;
+      case 'radar':
+        return <MobileRadarMapScreen />;
       case 'climate':
         return <ClimatePage />;
       case 'whatif':
@@ -51,50 +76,75 @@ const AppContent: React.FC = () => {
       case 'emergency':
         return <EmergencyPage />;
       default:
-        return <DashboardPage />;
+        return (
+          <div className="space-y-2 pb-12">
+            <MobileHeroWeatherCard />
+            <MobileEarlyWarningsCard />
+          </div>
+        );
     }
   };
 
   return (
-    <div className={`min-h-screen bg-[#F4F7FC] text-slate-900 ${simpleMode ? 'text-lg leading-relaxed' : ''}`}>
-      {/* First Screen Welcome & Location Modal */}
-      <WelcomeLocationModal />
-
-      {/* Global Modals */}
+    <MobileAppShell>
       <LocationSelectorModal />
       <VoiceModal />
       <ExplainableAIModal />
+      <PwaInstallPrompt />
+      {renderActivePage()}
+    </MobileAppShell>
+  );
+};
 
-      {/* App Shell */}
-      <div className="flex">
-        {/* Desktop Sidebar */}
-        <Sidebar />
+const RootRouter: React.FC = () => {
+  const { authStatus, onboardingStep } = useAuthContext();
 
-        {/* Main Content Area */}
-        <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'md:ml-64' : 'md:ml-20'}`}>
-          {/* Header */}
-          <Header />
-
-          {/* Page Router Body */}
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24 md:pb-12">
-            {renderActivePage()}
-          </main>
+  if (authStatus === 'LOADING') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-center">
+        <div className="p-6 bg-slate-900 rounded-3xl border border-slate-800 flex flex-col items-center gap-3 text-white">
+          <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
+          <span className="text-xs font-bold uppercase tracking-wider">Loading WeatherGPT Session...</span>
         </div>
       </div>
+    );
+  }
 
-      {/* Mobile Bottom Navigation */}
-      <MobileNav />
-    </div>
-  );
+  if (authStatus === 'PROFILE_COMPLETE' || onboardingStep === 'COMPLETE') {
+    return <MainAppContent />;
+  }
+
+  switch (onboardingStep) {
+    case 'WELCOME':
+      return <WelcomeScreen />;
+    case 'PHONE':
+      return <PhoneAuthScreen />;
+    case 'OTP':
+      return <OtpVerificationScreen />;
+    case 'USERNAME':
+      return <ProfileSetupScreen />;
+    case 'ROLE':
+      return <RoleSelectionScreen />;
+    case 'ROLE_CONFIRM':
+      return <RoleConfirmationScreen />;
+    case 'LOCATION':
+      return <LocationSetupScreen />;
+    case 'LOCATION_CONFIRM':
+      return <LocationConfirmationScreen />;
+    default:
+      return <WelcomeScreen />;
+  }
 };
 
 export function App() {
   return (
     <LanguageProvider>
       <UIProvider>
-        <WeatherProvider>
-          <AppContent />
-        </WeatherProvider>
+        <AuthProvider>
+          <WeatherProvider>
+            <RootRouter />
+          </WeatherProvider>
+        </AuthProvider>
       </UIProvider>
     </LanguageProvider>
   );
