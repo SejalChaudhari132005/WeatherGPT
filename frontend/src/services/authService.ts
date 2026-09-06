@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from "../lib/supabase";
 
 export interface AuthResponse {
   success: boolean;
@@ -8,176 +8,242 @@ export interface AuthResponse {
 }
 
 export class AuthService {
-  public async signInWithEmail(email: string, password: string): Promise<AuthResponse> {
+  /**
+   * Email + Password Login
+   */
+  public async signInWithEmail(
+    email: string,
+    password: string
+  ): Promise<AuthResponse> {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const cleanEmail = email.trim();
 
-      if (error) {
-        return { success: false, message: error.message };
-      }
-
-      if (!data.session) {
-        return { success: false, message: 'Authentication succeeded but no session was returned.' };
-      }
-
-      return { success: true, user: data.user, session: data.session };
-    } catch (err: any) {
-      return { success: false, message: err.message || 'Unable to sign in.' };
-    }
-  }
-
-  public async signUpWithEmail(email: string, password: string): Promise<AuthResponse> {
-    try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-
-      if (error) {
-        return { success: false, message: error.message };
-      }
-
-      if (!data.session) {
+      if (!cleanEmail || !password) {
         return {
           success: false,
-          message: 'Account created. Check your email to confirm your account before signing in.',
+          message: "Email and password are required.",
         };
       }
 
-      return { success: true, user: data.user, session: data.session };
-    } catch (err: any) {
-      return { success: false, message: err.message || 'Unable to create your account.' };
-    }
-  }
-
-  public async signInWithGoogle(): Promise<AuthResponse> {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin },
-      });
-
-      if (error) {
-        return { success: false, message: error.message };
-      }
-
-      if (!data.url) {
-        return { success: false, message: 'Google sign-in could not be started.' };
-      }
-
-      window.location.assign(data.url);
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, message: err.message || 'Unable to continue with Google.' };
-    }
-  }
-
-  /**
-   * Format phone number to E.164 format (+919876543210)
-   */
-  public formatPhone(rawPhone: string, countryCode: string = '+91'): string {
-    const cleaned = rawPhone.replace(/\D/g, '');
-    if (cleaned.startsWith('91') && cleaned.length === 12) {
-      return `+${cleaned}`;
-    }
-    return `${countryCode}${cleaned}`;
-  }
-
-  /**
-   * Send SMS OTP via Supabase Auth
-   */
-  public async sendPhoneOtp(phoneNumber: string): Promise<AuthResponse> {
-    const formatted = this.formatPhone(phoneNumber);
-
-    if (formatted.length < 12) {
-      return {
-        success: false,
-        message: 'Invalid mobile number. Please enter a valid 10-digit number.'
-      };
-    }
-
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formatted,
-      });
+      const { data, error } =
+        await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
 
       if (error) {
         return {
           success: false,
-          message: error.message
+          message: error.message,
+        };
+      }
+
+      if (!data.session || !data.user) {
+        return {
+          success: false,
+          message: "Login succeeded but no session was returned.",
         };
       }
 
       return {
         success: true,
-        message: `6-digit verification code sent to ${formatted}.`
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message || 'Network failure while sending OTP. Please check connection.'
-      };
-    }
-  }
-
-  /**
-   * Verify SMS OTP token
-   */
-  public async verifyPhoneOtp(phoneNumber: string, token: string): Promise<AuthResponse> {
-    const formatted = this.formatPhone(phoneNumber);
-    const cleanedToken = token.trim();
-
-    if (cleanedToken.length !== 6) {
-      return {
-        success: false,
-        message: 'Please enter the complete 6-digit OTP code.'
-      };
-    }
-
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: formatted,
-        token: cleanedToken,
-        type: 'sms',
-      });
-
-      if (error) {
-        return {
-          success: false,
-          message: error.message
-        };
-      }
-
-      if (!data.session) {
-        return {
-          success: false,
-          message: 'Authentication succeeded but no session was returned.'
-        };
-      }
-
-      return {
-        success: true,
-        user: data.session.user,
+        user: data.user,
         session: data.session,
       };
     } catch (err: any) {
+      console.error("Email login error:", err);
+
       return {
         success: false,
-        message: err.message || 'Verification failed due to network error.'
+        message:
+          err?.message || "Unable to sign in. Please try again.",
       };
     }
   }
 
   /**
-   * Get current Supabase auth session
+   * Email + Password Account Creation
+   */
+  public async signUpWithEmail(
+    email: string,
+    password: string
+  ): Promise<AuthResponse> {
+    try {
+      const cleanEmail = email.trim();
+
+      if (!cleanEmail || !password) {
+        return {
+          success: false,
+          message: "Email and password are required.",
+        };
+      }
+
+      if (password.length < 6) {
+        return {
+          success: false,
+          message: "Password must be at least 6 characters.",
+        };
+      }
+
+      const { data, error } =
+        await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+        });
+
+      if (error) {
+        return {
+          success: false,
+          message: error.message,
+        };
+      }
+
+      /*
+       * If email confirmation is disabled in Supabase,
+       * Supabase should return a session immediately.
+       */
+      if (!data.session || !data.user) {
+        return {
+          success: false,
+          message:
+            "Account was created, but no active session was returned. Please check your Supabase Email authentication settings.",
+        };
+      }
+
+      return {
+        success: true,
+        user: data.user,
+        session: data.session,
+      };
+    } catch (err: any) {
+      console.error("Email signup error:", err);
+
+      return {
+        success: false,
+        message:
+          err?.message ||
+          "Unable to create your account. Please try again.",
+      };
+    }
+  }
+
+  /**
+   * Continue with Google
+   */
+  public async signInWithGoogle(): Promise<AuthResponse> {
+    try {
+      const redirectTo = window.location.origin;
+
+      const { data, error } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo,
+          },
+        });
+
+      if (error) {
+        return {
+          success: false,
+          message: error.message,
+        };
+      }
+
+      if (!data.url) {
+        return {
+          success: false,
+          message:
+            "Google sign-in could not be started.",
+        };
+      }
+
+      /*
+       * Redirect the browser to Google.
+       * Supabase handles the OAuth callback.
+       */
+      window.location.assign(data.url);
+
+      return {
+        success: true,
+      };
+    } catch (err: any) {
+      console.error("Google login error:", err);
+
+      return {
+        success: false,
+        message:
+          err?.message ||
+          "Unable to continue with Google.",
+      };
+    }
+  }
+
+  /**
+   * Get the current authenticated Supabase session
    */
   public async getSession() {
-    const { data } = await supabase.auth.getSession();
-    return data.session;
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error(
+          "Get session error:",
+          error
+        );
+        return null;
+      }
+
+      return session;
+    } catch (err) {
+      console.error(
+        "Get session exception:",
+        err
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get the current authenticated user
+   */
+  public async getCurrentUser() {
+    try {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error(
+          "Get current user error:",
+          error
+        );
+        return null;
+      }
+
+      return user;
+    } catch (err) {
+      console.error(
+        "Get current user exception:",
+        err
+      );
+      return null;
+    }
   }
 
   /**
    * Sign out current user
    */
   public async signOut(): Promise<void> {
-    await supabase.auth.signOut();
+    const { error } =
+      await supabase.auth.signOut();
+
+    if (error) {
+      throw error;
+    }
   }
 }
 

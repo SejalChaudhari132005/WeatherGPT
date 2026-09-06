@@ -1,115 +1,183 @@
-import { UserLocation, CityOption } from '../types/location';
+import { UserLocation, LocationSource, CityOption } from '../types/location';
 import { MOCK_CITIES } from '../data/mockCities';
+import { supabase } from '../lib/supabase';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export class LocationService {
   /**
-   * Browser Geolocation API call to obtain exact latitude and longitude
+   * 1. Retrieve EXACT device hardware GPS coordinates via HTML5 Geolocation API
    */
-  public async getCurrentPosition(): Promise<{ latitude: number; longitude: number }> {
+  public async getExactGPSPosition(): Promise<{ latitude: number; longitude: number }> {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error('Geolocation is not supported by your browser.'));
+        reject(new Error('Geolocation is not supported by your browser. Please search your location manually.'));
         return;
       }
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          console.log('[LocationService] Exact Hardware GPS Coordinates obtained:', lat, lon);
+          resolve({ latitude: lat, longitude: lon });
         },
         (error) => {
-          let errorMsg = 'Failed to get your location.';
+          let errorMsg = 'Failed to retrieve GPS location.';
           if (error.code === error.PERMISSION_DENIED) {
-            errorMsg = 'Location access was denied. Please allow location access or pick a city manually.';
+            errorMsg = 'Location permission is denied in your browser settings. Click the lock icon 🔒 in your browser URL bar to allow location access.';
           } else if (error.code === error.POSITION_UNAVAILABLE) {
-            errorMsg = 'Location information is unavailable.';
+            errorMsg = 'Device GPS sensor is currently unavailable. Please enable device location or search manually.';
           } else if (error.code === error.TIMEOUT) {
-            errorMsg = 'The request to get user location timed out.';
+            errorMsg = 'GPS location detection timed out. Please try again or search manually.';
           }
           reject(new Error(errorMsg));
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        {
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0,
+        }
       );
     });
   }
 
   /**
-   * Reverse geocodes latitude & longitude into City, District, State, Country
-   * Uses OpenStreetMap Nominatim free API with client-side fallback
+   * Main method: try exact GPS first, with explicit error propagation
    */
-  public async reverseGeocode(latitude: number, longitude: number): Promise<UserLocation> {
+  public async getCurrentPosition(): Promise<{ latitude: number; longitude: number }> {
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
-        { headers: { 'User-Agent': 'WeatherGPT-App/1.0' } }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const address = data.address || {};
-
-        const city =
-          address.city ||
-          address.town ||
-          address.village ||
-          address.suburb ||
-          address.municipality ||
-          'Detected Area';
-
-        const district = address.state_district || address.county || address.district || city;
-        const state = address.state || 'Region';
-        const country = address.country || 'India';
-        const pincode = address.postcode;
-
-        return {
-          latitude,
-          longitude,
-          city,
-          district,
-          state,
-          country,
-          pincode,
-          isCustom: false,
-        };
+      return await this.getExactGPSPosition();
+    } catch (gpsError: any) {
+      console.warn('[LocationService] Exact GPS failed:', gpsError.message);
+      // Try IP fallback as secondary attempt
+      try {
+        return await this.detectLocationFromIP();
+      } catch (ipError) {
+        throw gpsError;
       }
-    } catch (err) {
-      console.warn('Reverse geocoding fetch failed, falling back to approximate lookup:', err);
     }
-
-    // Fallback: Find closest mock city or return generic coordinates object
-    const closest = this.findClosestMockCity(latitude, longitude);
-    if (closest) {
-      return {
-        latitude,
-        longitude,
-        city: closest.name,
-        district: closest.district,
-        state: closest.state,
-        country: closest.country,
-        pincode: closest.pincode,
-        isCustom: false,
-      };
-    }
-
-    return {
-      latitude,
-      longitude,
-      city: `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`,
-      district: 'GPS Location',
-      state: 'Local Zone',
-      country: 'India',
-      isCustom: false,
-    };
   }
 
   /**
-   * Search locations by city name, district, state, or pincode
+   * Fallback IP location lookup when browser GPS is disabled
+   */
+  public async detectLocationFromIP(): Promise<{ latitude: number; longitude: number }> {
+    const response = await fetch(`${API_BASE_URL}/api/location/detect_ip`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.location && data.location.latitude && data.location.longitude) {
+        console.log('[LocationService] Network IP Location resolved:', data.location.city, data.location.latitude, data.location.longitude);
+        return {
+          latitude: data.location.latitude,
+          longitude: data.location.longitude,
+        };
+      }
+    }
+
+    throw new Error('Network location detection unavailable');
+  }
+
+  /**
+   * 2. Call FastAPI backend Location Agent /api/location/resolve to reverse geocode exact coordinates
+   */
+  public async resolveLocation(
+    latitude: number,
+    longitude: number,
+    source: LocationSource = 'gps'
+  ): Promise<UserLocation> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/location/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude, longitude, source }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Location resolution failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success && data.location) {
+        return {
+          latitude: data.location.latitude,
+          longitude: data.location.longitude,
+          city: data.location.city,
+          district: data.location.district,
+          state: data.location.state,
+          country: data.location.country,
+          source: data.location.source || source,
+          location_source: data.location.source || source,
+          displayName: data.location.display_name,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      throw new Error('Invalid response structure from location resolve endpoint');
+    } catch (err) {
+      console.warn('[LocationService] Backend resolve failed:', err);
+      return {
+        latitude,
+        longitude,
+        city: `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`,
+        district: 'Current Coordinates',
+        state: 'Local Region',
+        country: 'India',
+        source,
+        location_source: source,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * Backward-compatible alias for reverseGeocode
+   */
+  public async reverseGeocode(latitude: number, longitude: number): Promise<UserLocation> {
+    return this.resolveLocation(latitude, longitude, 'gps');
+  }
+
+  /**
+   * 3. Call FastAPI backend /api/location/search?q=query for manual location search (cities, towns, villages, talukas across India)
+   */
+  public async searchLocation(query: string): Promise<UserLocation[]> {
+    const q = query.trim();
+    if (!q) return [];
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/location/search?q=${encodeURIComponent(q)}`);
+      if (!response.ok) return [];
+
+      const data = await response.json();
+      if (data.success && Array.isArray(data.results)) {
+        return data.results.map((res: any) => ({
+          latitude: res.latitude,
+          longitude: res.longitude,
+          city: res.city || 'Location',
+          district: res.district || res.city,
+          state: res.state || '',
+          country: res.country || 'India',
+          source: 'manual' as LocationSource,
+          location_source: 'manual' as LocationSource,
+          displayName: res.display_name,
+        }));
+      }
+      return [];
+    } catch (err) {
+      console.warn('[LocationService] Location search error:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Backward-compatible searchLocations
    */
   public searchLocations(query: string): CityOption[] {
     const q = query.trim().toLowerCase();
-    if (!q) return MOCK_CITIES.slice(0, 5);
+    if (!q) return MOCK_CITIES;
 
     return MOCK_CITIES.filter(
       (c) =>
@@ -120,20 +188,65 @@ export class LocationService {
     );
   }
 
-  private findClosestMockCity(lat: number, lon: number): CityOption | null {
-    let minDistance = Infinity;
-    let closest: CityOption | null = null;
+  /**
+   * 4. Save dynamic location context to user profile in Supabase
+   */
+  public async saveLocation(userId: string, location: UserLocation): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          city: location.city,
+          district: location.district,
+          state: location.state,
+          country: location.country,
+          location_source: location.source,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
 
-    for (const city of MOCK_CITIES) {
-      const d = Math.hypot(city.latitude - lat, city.longitude - lon);
-      if (d < minDistance) {
-        minDistance = d;
-        closest = city;
+      if (error) {
+        console.error('[LocationService] Supabase profile location update error:', error);
+        return false;
       }
+      return true;
+    } catch (err) {
+      console.error('[LocationService] Save location exception:', err);
+      return false;
     }
+  }
 
-    // If within ~100km radius (~1 degree roughly)
-    return minDistance < 1.5 ? closest : null;
+  /**
+   * 5. Fetch saved location from Supabase profile
+   */
+  public async getSavedLocation(userId: string): Promise<UserLocation | null> {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('latitude, longitude, city, district, state, country, location_source')
+        .eq('id', userId)
+        .single();
+
+      if (error || !data || data.latitude == null || data.longitude == null) {
+        return null;
+      }
+
+      return {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        city: data.city,
+        district: data.district || data.city || '',
+        state: data.state || '',
+        country: data.country || 'India',
+        source: (data.location_source as LocationSource) || 'manual',
+        location_source: (data.location_source as LocationSource) || 'manual',
+      };
+    } catch (err) {
+      console.warn('[LocationService] getSavedLocation error:', err);
+      return null;
+    }
   }
 }
 

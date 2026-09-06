@@ -1,99 +1,91 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { UserProfile } from '../types/user';
-
-const LOCAL_PROFILE_KEY = 'weathergpt_user_profile';
+import { supabase } from "../lib/supabase";
+import { UserProfile } from "../types/user";
 
 export class ProfileService {
   /**
-   * Fetch profile by user_id from Supabase or localStorage fallback
+   * Fetch the currently authenticated user's profile.
+   *
+   * The user ID comes from the authenticated Supabase session.
    */
-  public async getProfile(userId: string): Promise<UserProfile | null> {
-    if (isSupabaseConfigured()) {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
+  public async getCurrentProfile(): Promise<UserProfile | null> {
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-        if (data && !error) {
-          localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(data));
-          return data as UserProfile;
-        }
-      } catch (err) {
-        console.warn('Error fetching profile from Supabase:', err);
+      if (userError || !user) {
+        return null;
       }
-    }
 
-    // LocalStorage fallback
-    const saved = localStorage.getItem(LOCAL_PROFILE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.user_id === userId || !isSupabaseConfigured()) {
-          return parsed as UserProfile;
-        }
-      } catch (e) {
-        console.error('Error parsing local profile', e);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching profile:", error);
+        return null;
       }
-    }
 
-    return null;
+      return data as UserProfile | null;
+    } catch (err) {
+      console.error("Error fetching current profile:", err);
+      return null;
+    }
   }
 
   /**
-   * Save or update profile in Supabase & LocalStorage
+   * Fetch profile by authenticated user ID.
+   *
+   * This is retained for compatibility with existing code.
    */
-  public async upsertProfile(profileData: Partial<UserProfile> & { user_id: string }): Promise<UserProfile> {
-    const updatedProfile: UserProfile = {
-      user_id: profileData.user_id,
-      username: profileData.username || '',
-      phone: profileData.phone || '',
-      role: profileData.role || 'citizen',
-      preferred_language: profileData.preferred_language || 'en',
-      latitude: profileData.latitude ?? 19.076,
-      longitude: profileData.longitude ?? 72.8777,
-      city: profileData.city || 'Mumbai',
-      district: profileData.district || 'Mumbai City',
-      state: profileData.state || 'Maharashtra',
-      country: profileData.country || 'India',
-      location_source: profileData.location_source || 'gps',
-      updated_at: new Date().toISOString(),
-    };
+  public async getProfile(
+    userId: string
+  ): Promise<UserProfile | null> {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (isSupabaseConfigured()) {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .upsert([updatedProfile], { onConflict: 'user_id' })
-          .select()
-          .single();
-
-        if (data && !error) {
-          localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(data));
-          return data as UserProfile;
-        }
-      } catch (err) {
-        console.warn('Supabase upsert error, storing locally:', err);
+      if (!user || user.id !== userId) {
+        return null;
       }
-    }
 
-    localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(updatedProfile));
-    return updatedProfile;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching profile:", error);
+        return null;
+      }
+
+      return data as UserProfile | null;
+    } catch (err) {
+      console.error("Error fetching profile:", err);
+      return null;
+    }
   }
 
   /**
-   * Check if profile has all mandatory onboarding fields completed
+   * Check if profile has required fields completed.
    */
-  public isProfileComplete(profile: UserProfile | null): boolean {
-    if (!profile) return false;
+  public isProfileComplete(
+    profile: UserProfile | null
+  ): boolean {
+    if (!profile) {
+      return false;
+    }
+
     return Boolean(
       profile.username &&
-      profile.username.trim().length > 0 &&
       profile.role &&
-      profile.city &&
-      profile.latitude &&
-      profile.longitude
+      profile.latitude != null &&
+      profile.longitude != null
     );
   }
 }

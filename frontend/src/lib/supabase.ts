@@ -1,22 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Supabase environment variables are missing.');
-}
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export function isSupabaseConfigured(): boolean {
   return (
-    Boolean(supabaseUrl) &&
-    Boolean(supabaseKey) &&
-    !supabaseUrl.includes('your-supabase-project') &&
-    !supabaseKey.includes('your-supabase-anon-key') &&
-    !supabaseKey.startsWith('sb_secret_')
+    Boolean(import.meta.env.VITE_SUPABASE_URL) &&
+    Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY) &&
+    !import.meta.env.VITE_SUPABASE_URL.includes('your-supabase-project') &&
+    !import.meta.env.VITE_SUPABASE_ANON_KEY.includes('your-supabase-anon-key')
   );
 }
+
