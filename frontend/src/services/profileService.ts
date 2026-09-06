@@ -43,29 +43,35 @@ export class ProfileService {
 
   /**
    * Save or update profile in Supabase & LocalStorage
+   * Strictly preserves explicit latitude/longitude without injecting hardcoded city fallbacks.
    */
   public async upsertProfile(profileData: Partial<UserProfile> & { user_id: string }): Promise<UserProfile> {
+    const existing = await this.getProfile(profileData.user_id);
+
     const updatedProfile: UserProfile = {
       user_id: profileData.user_id,
-      username: profileData.username || '',
-      phone: profileData.phone || '',
-      role: profileData.role || 'citizen',
-      preferred_language: profileData.preferred_language || 'en',
-      latitude: profileData.latitude || 19.076,
-      longitude: profileData.longitude || 72.8777,
-      city: profileData.city || 'Mumbai',
-      district: profileData.district || 'Mumbai City',
-      state: profileData.state || 'Maharashtra',
-      country: profileData.country || 'India',
-      location_source: profileData.location_source || 'gps',
+      username: profileData.username ?? existing?.username ?? '',
+      phone: profileData.phone ?? existing?.phone ?? '',
+      role: profileData.role ?? existing?.role ?? 'citizen',
+      preferred_language: profileData.preferred_language ?? existing?.preferred_language ?? 'en',
+      latitude: profileData.latitude ?? existing?.latitude ?? (null as any),
+      longitude: profileData.longitude ?? existing?.longitude ?? (null as any),
+      city: profileData.city ?? existing?.city ?? '',
+      district: profileData.district ?? existing?.district ?? '',
+      state: profileData.state ?? existing?.state ?? '',
+      country: profileData.country ?? existing?.country ?? 'India',
+      location_source: profileData.location_source ?? existing?.location_source ?? 'gps',
+      created_at: existing?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
+    localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(updatedProfile));
 
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .upsert([updatedProfile], { onConflict: 'user_id' })
+          .upsert(updatedProfile, { onConflict: 'user_id' })
           .select()
           .single();
 
@@ -74,28 +80,23 @@ export class ProfileService {
           return data as UserProfile;
         }
       } catch (err) {
-        console.warn('Supabase upsert error, storing locally:', err);
+        console.warn('Supabase profile upsert warning:', err);
       }
     }
 
-    localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(updatedProfile));
     return updatedProfile;
   }
 
   /**
-   * Check if profile has all mandatory onboarding fields completed
+   * Check if profile has required fields completed
    */
   public isProfileComplete(profile: UserProfile | null): boolean {
     if (!profile) return false;
-    return Boolean(
-      profile.username &&
-      profile.username.trim().length > 0 &&
-      profile.role &&
-      profile.city &&
-      profile.latitude &&
-      profile.longitude
-    );
+    return Boolean(profile.username && profile.role && profile.latitude != null && profile.longitude != null);
   }
 }
 
+
 export const profileService = new ProfileService();
+
+

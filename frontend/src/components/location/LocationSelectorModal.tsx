@@ -1,157 +1,181 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Star, X, Check, Navigation, Building2 } from 'lucide-react';
-import { useUI } from '../../context/UIContext';
-import { useWeather } from '../../context/WeatherContext';
+import { Search, Navigation, MapPin, X, Check, Loader2, AlertCircle } from 'lucide-react';
+import { useLocation } from '../../hooks/useLocation';
 import { locationService } from '../../services/locationService';
-import { MOCK_CITIES } from '../../data/mockCities';
-import { CityOption } from '../../types/location';
+import { UserLocation } from '../../types/location';
+
+const POPULAR_LOCATIONS: UserLocation[] = [
+  { latitude: 18.5204, longitude: 73.8567, city: 'Pune', district: 'Pune', state: 'Maharashtra', country: 'India', source: 'manual' },
+  { latitude: 19.0760, longitude: 72.8777, city: 'Mumbai', district: 'Mumbai', state: 'Maharashtra', country: 'India', source: 'manual' },
+  { latitude: 19.9975, longitude: 73.7898, city: 'Nashik', district: 'Nashik', state: 'Maharashtra', country: 'India', source: 'manual' },
+  { latitude: 9.9312, longitude: 76.2673, city: 'Kochi', district: 'Ernakulam', state: 'Kerala', country: 'India', source: 'manual' },
+  { latitude: 12.9716, longitude: 77.5946, city: 'Bengaluru', district: 'Bengaluru', state: 'Karnataka', country: 'India', source: 'manual' },
+  { latitude: 13.0827, longitude: 80.2707, city: 'Chennai', district: 'Chennai', state: 'Tamil Nadu', country: 'India', source: 'manual' },
+  { latitude: 28.6139, longitude: 77.2090, city: 'Delhi', district: 'Delhi', state: 'Delhi', country: 'India', source: 'manual' },
+];
 
 export const LocationSelectorModal: React.FC = () => {
-  const { locationModalOpen, setLocationModalOpen } = useUI();
-  const { userLocation, setCustomLocation, detectUserLocation, locationLoading } = useWeather();
-
+  const { location, detectLocation, selectLocation, loading, statusMessage, error, isSelectorOpen, closeSelector } = useLocation();
   const [query, setQuery] = useState('');
-  const searchResults = locationService.searchLocations(query);
+  const [searchResults, setSearchResults] = useState<UserLocation[]>([]);
+  const [searching, setSearching] = useState(false);
 
-  const [savedCities, setSavedCities] = useState<CityOption[]>([
-    MOCK_CITIES[0], // Mumbai
-    MOCK_CITIES[1], // Pune
-    MOCK_CITIES[4], // Delhi
-    MOCK_CITIES[5], // Bengaluru
-  ]);
+  if (!isSelectorOpen) return null;
 
-  if (!locationModalOpen) return null;
-
-  const handleSelectCity = (city: CityOption) => {
-    setCustomLocation({
-      latitude: city.latitude,
-      longitude: city.longitude,
-      city: city.name,
-      district: city.district,
-      state: city.state,
-      country: city.country,
-      pincode: city.pincode,
-      isCustom: true
-    });
-    setLocationModalOpen(false);
+  const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    if (val.trim().length >= 2) {
+      setSearching(true);
+      const results = await locationService.searchLocation(val);
+      setSearchResults(results);
+      setSearching(false);
+    } else {
+      setSearchResults([]);
+    }
   };
 
-  const handleUseGPS = async () => {
-    await detectUserLocation();
-    setLocationModalOpen(false);
+  const handleGPSDetect = async () => {
+    const res = await detectLocation();
+    if (res) {
+      closeSelector();
+    }
+  };
+
+  const handleSelect = async (loc: UserLocation) => {
+    await selectLocation(loc);
+    closeSelector();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 relative max-h-[90vh] flex flex-col">
-        {/* Close Button */}
-        <button
-          onClick={() => setLocationModalOpen(false)}
-          className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <h3 className="text-xl font-bold text-slate-900 mb-1">Select Location</h3>
-        <p className="text-xs text-slate-500 mb-4">Choose your city, district, state, or search pincode for hyperlocal weather intelligence</p>
-
-        {/* Search Bar */}
-        <div className="relative mb-4">
-          <Search className="w-5 h-5 absolute left-3.5 top-3.5 text-slate-400" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search city, district, state, pincode (e.g. Mumbai, 400001)..."
-            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
-            autoFocus
-          />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 font-['Arimo'] flex flex-col max-h-[85vh]">
+        
+        {/* Modal Header */}
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-[#004aad] to-[#38b6ff] text-white">
+          <div>
+            <h2 className="text-lg font-black tracking-tight">Set Your Location</h2>
+            <p className="text-xs text-sky-100 font-medium mt-0.5">WeatherGPT dynamic context resolution</p>
+          </div>
+          <button
+            onClick={closeSelector}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="overflow-y-auto space-y-4 pr-1 flex-1">
-          {/* Use Current GPS Location Button */}
+        {/* Modal Body */}
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          
+          {/* Search Box */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={handleSearch}
+              placeholder="Search city, district, state..."
+              className="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 focus:border-[#38b6ff] focus:bg-white focus:outline-none text-sm text-slate-800 font-semibold placeholder:text-slate-400 transition-all shadow-inner"
+            />
+            {searching && (
+              <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#38b6ff] animate-spin" />
+            )}
+          </div>
+
+          {/* GPS Auto-Detect Button */}
           <button
-            onClick={handleUseGPS}
-            disabled={locationLoading}
-            className="w-full p-3.5 rounded-2xl bg-sky-50 hover:bg-sky-100 border border-sky-200/80 text-sky-700 font-semibold text-sm flex items-center justify-between transition-all group"
+            onClick={handleGPSDetect}
+            disabled={loading}
+            className="w-full p-4 rounded-2xl bg-sky-50 hover:bg-sky-100/80 border border-sky-200 text-[#004aad] flex items-center justify-between transition-all group cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-sky-600 text-white shadow-xs group-hover:scale-105 transition-transform">
-                <Navigation className={`w-4 h-4 ${locationLoading ? 'animate-spin' : ''}`} />
+              <div className="p-2.5 rounded-xl bg-[#38b6ff]/15 group-hover:bg-[#38b6ff]/25 text-[#004aad] transition-colors">
+                <Navigation className="w-5 h-5" />
               </div>
               <div className="text-left">
-                <div className="text-slate-900 font-bold">📍 Use Current GPS Location</div>
-                <div className="text-xs text-sky-600">Detect browser latitude & longitude</div>
+                <div className="text-sm font-black tracking-tight">Use Current Location</div>
+                <div className="text-xs text-sky-700 font-semibold mt-0.5">{statusMessage}</div>
               </div>
             </div>
-            <span className="text-xs font-bold text-sky-600 uppercase tracking-wider">Detect</span>
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-[#004aad]" />
+            ) : (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#004aad] text-white">GPS</span>
+            )}
           </button>
 
-          {/* Saved Locations */}
-          {!query && (
-            <div>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-                <span>⭐ Quick Saved Locations</span>
+          {/* GPS Error Alert */}
+          {error && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span className="font-semibold">{error}</span>
+            </div>
+          )}
+
+          {/* Search Results / Recommended List */}
+          {searchResults.length > 0 ? (
+            <div className="space-y-2">
+              <div className="text-xs font-black uppercase text-slate-400 tracking-wider px-1">
+                Search Results ({searchResults.length})
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {savedCities.map((city, idx) => (
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {searchResults.map((res, i) => (
                   <button
-                    key={idx}
-                    onClick={() => handleSelectCity(city)}
-                    className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-left transition-all flex items-center justify-between group"
+                    key={i}
+                    onClick={() => handleSelect(res)}
+                    className="w-full p-3 rounded-2xl border border-slate-100 hover:border-sky-300 hover:bg-sky-50/50 flex items-center justify-between text-left transition-all group cursor-pointer"
                   >
-                    <div>
-                      <div className="text-xs font-bold text-slate-800 group-hover:text-sky-600 transition-colors">{city.name}</div>
-                      <div className="text-[11px] text-slate-400">{city.state}</div>
+                    <div className="flex items-center gap-2.5">
+                      <MapPin className="w-4 h-4 text-slate-400 group-hover:text-[#004aad] transition-colors" />
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 group-hover:text-[#004aad] block">
+                          {res.city}, {res.state}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block font-medium">
+                          {res.district} • {res.country}
+                        </span>
+                      </div>
                     </div>
-                    {userLocation?.city === city.name && (
-                      <Check className="w-4 h-4 text-sky-600" />
-                    )}
                   </button>
                 ))}
               </div>
             </div>
-          )}
-
-          {/* Search Results */}
-          <div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-              🔎 {query ? 'Search Results' : 'Popular Cities'}
-            </div>
-            <div className="space-y-1.5">
-              {searchResults.length > 0 ? (
-                searchResults.map((city, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSelectCity(city)}
-                    className="w-full p-3 rounded-2xl hover:bg-slate-50 border border-transparent hover:border-slate-200/80 flex items-center justify-between transition-all text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-slate-100 text-slate-500">
-                        <Building2 className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-slate-800">{city.name}</div>
-                        <div className="text-xs text-slate-500">
-                          {city.district}, {city.state} {city.pincode ? `(${city.pincode})` : ''}
+          ) : (
+            <div className="space-y-2 pt-1">
+              <div className="text-xs font-black uppercase text-slate-400 tracking-wider px-1">
+                Popular Cities
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {POPULAR_LOCATIONS.map((loc) => {
+                  const isSelected = Boolean(location?.city && location.city.toLowerCase() === loc.city.toLowerCase());
+                  return (
+                    <button
+                      key={loc.city}
+                      onClick={() => handleSelect(loc)}
+                      className={`p-3 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#004aad] border-[#004aad] text-white shadow-md'
+                          : 'bg-white border-slate-100 hover:border-sky-200 hover:bg-slate-50 text-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <MapPin className={`w-4 h-4 ${isSelected ? 'text-sky-200' : 'text-slate-400'}`} />
+                        <div>
+                          <span className="text-xs font-bold block">{loc.city}, {loc.state}</span>
+                          <span className={`text-[10px] block ${isSelected ? 'text-sky-100' : 'text-slate-400'}`}>
+                            {loc.district} District
+                          </span>
                         </div>
                       </div>
-                    </div>
-                    {userLocation?.city === city.name && (
-                      <span className="text-xs font-semibold px-2 py-0.5 bg-sky-100 text-sky-700 rounded-md">
-                        Selected
-                      </span>
-                    )}
-                  </button>
-                ))
-              ) : (
-                <div className="py-6 text-center text-sm text-slate-400">
-                  No cities found matching "{query}". Search supports any city or pincode.
-                </div>
-              )}
+                      {isSelected && <Check className="w-4 h-4 text-white" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
+
         </div>
       </div>
     </div>

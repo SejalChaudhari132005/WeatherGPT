@@ -1,9 +1,10 @@
 import React from 'react';
-import { MapPin, Sun, CloudRain, Sparkles, ArrowRight, Clock, ShieldCheck } from 'lucide-react';
+import { MapPin, Sun, CloudRain, Sparkles, ArrowRight, Clock, ShieldCheck, ChevronDown } from 'lucide-react';
 import { getRoleTheme } from '../../config/roleThemes';
 import { getHeroBackgroundImage } from '../../services/locationImageService';
 import { ComprehensiveWeatherData } from '../../data/mockWeather';
 import { DemoBadge } from '../common/DemoBadge';
+import { useLocation } from '../../hooks/useLocation';
 
 interface Props {
   weather: ComprehensiveWeatherData;
@@ -18,10 +19,16 @@ export const WeatherHero: React.FC<Props> = ({
   locationName,
   onAskGpt,
 }) => {
+  const { location, openSelector } = useLocation();
   const theme = getRoleTheme(role);
-  const city = locationName.split(',')[0] || weather.city;
-  const bgImage = getHeroBackgroundImage(role, city);
 
+  // Dynamic location display from LocationContext
+  const displayCity = location?.city || locationName.split(',')[0] || weather.city;
+  const displayState = location?.state || weather.state || 'Maharashtra';
+  const fullLocationString = `${displayCity}, ${displayState}`;
+  const isGps = (location?.source || location?.location_source) === 'gps';
+
+  const bgImage = getHeroBackgroundImage(role, displayCity);
   const decision = theme.defaultDecision;
 
   return (
@@ -29,7 +36,7 @@ export const WeatherHero: React.FC<Props> = ({
       {/* High-Resolution Location-Aware Background Image */}
       <img
         src={bgImage}
-        alt={`${city} Weather Background`}
+        alt={`${displayCity} Weather Background`}
         className="absolute inset-0 w-full h-full object-cover object-center scale-105 transition-transform duration-700 hover:scale-100"
       />
 
@@ -41,13 +48,20 @@ export const WeatherHero: React.FC<Props> = ({
         {/* Top Badges & Location Header */}
         <div className="space-y-1.5 min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-1.5">
-            {/* Location Pill */}
-            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] sm:text-xs font-black text-white border border-white/30 shrink min-w-0 max-w-[55%] sm:max-w-none">
-              <MapPin className="w-3 h-3 text-[#fcd444] shrink-0" />
-              <span className="truncate">📍 {locationName}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5 shrink-0"></span>
-              <span className="text-[9px] opacity-80 shrink-0">Live</span>
-            </div>
+            {/* Interactive Location Selector Pill */}
+            <button
+              onClick={openSelector}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-[10px] sm:text-xs font-black text-white border border-white/30 transition-all cursor-pointer group shadow-sm"
+              title="Click to set or change location"
+            >
+              <MapPin className="w-3.5 h-3.5 text-[#fcd444] shrink-0" />
+              <span className="truncate">📍 {fullLocationString}</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${isGps ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'} shrink-0 ml-0.5`}></span>
+              <span className="text-[9px] opacity-90 shrink-0 font-extrabold">
+                {isGps ? '● Live location' : '● Selected location'}
+              </span>
+              <ChevronDown className="w-3 h-3 text-white/70 group-hover:text-white transition-transform group-hover:translate-y-0.5" />
+            </button>
 
             {/* Badges Container */}
             <div className="flex items-center gap-1 shrink-0">
@@ -58,73 +72,66 @@ export const WeatherHero: React.FC<Props> = ({
               </div>
 
               {/* Role Badge */}
-              <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase border shrink-0 shadow-xs ${theme.badgeStyle}`}>
-                <span>{theme.badgeLabel}</span>
+              <div className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${theme.badgeStyle} backdrop-blur-md text-[9px] sm:text-[10px] font-black text-white border border-white/30 shrink-0 shadow-xs uppercase tracking-wider`}>
+                <ShieldCheck className="w-3 h-3" />
+                <span>{role}</span>
               </div>
+
+              {/* Environment Indicator */}
+              <DemoBadge label="DEMO DATA" variant="amber" />
             </div>
           </div>
-
-          <p className="text-[10px] sm:text-xs text-white/85 font-bold truncate max-w-full">{theme.tagline}</p>
         </div>
 
-        {/* Center Temperature & Weather Condition */}
-        <div className="my-1 sm:my-2 flex items-center justify-between gap-2">
-          <div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-5xl sm:text-7xl font-black tracking-tight">{weather.temperature}°</span>
-              <span className="text-xl sm:text-2xl font-bold text-sky-200">C</span>
+        {/* Hero Middle Section: Temperature & Weather Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end pt-1">
+          <div className="space-y-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl sm:text-7xl font-black tracking-tight leading-none text-white drop-shadow-md">
+                {weather.temperature}°
+              </span>
+              <div className="text-[#fcd444] font-bold text-base sm:text-xl flex items-center gap-1">
+                <CloudRain className="w-5 h-5 inline" />
+                <span>{weather.condition}</span>
+              </div>
             </div>
 
-            <div className="text-lg sm:text-xl font-extrabold text-white mt-0.5 flex items-center gap-2">
-              <span>{weather.condition}</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-white/80 font-bold mt-1">
+            <div className="flex items-center gap-3 text-xs sm:text-sm font-semibold text-white/90">
               <span>Feels like {weather.feelsLike}°</span>
-              <span className="hidden sm:inline">•</span>
+              <span>•</span>
               <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-sky-300" />
-                Updated {weather.updatedTime}
+                <Clock className="w-3.5 h-3.5 text-white/80" />
+                <span>Updated {weather.updatedTime || 'Just now'}</span>
               </span>
             </div>
           </div>
-
-          {/* Primary Weather Graphic Icon */}
-          <div className="relative p-2.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-white/15 backdrop-blur-md border border-white/25 shadow-xl shrink-0">
-            <CloudRain className="w-10 h-10 sm:w-18 sm:h-18 text-[#38b6ff]" />
-          </div>
         </div>
 
-        {/* --- ROLE-AWARE WEATHER DECISION CARD --- */}
-        <div className="p-3 sm:p-4 rounded-2xl bg-white/95 backdrop-blur-md text-slate-900 border border-white/50 shadow-xl space-y-1.5">
-          <div className="flex items-start justify-between gap-1.5">
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <span className="text-lg sm:text-xl shrink-0">{decision.icon}</span>
-              <div className="min-w-0 flex-1">
-                <span className="text-[9px] sm:text-[10px] font-black uppercase text-[#004aad] tracking-wider block truncate">
-                  WeatherGPT Recommendation
-                </span>
-                <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 leading-tight truncate">{decision.action}</h3>
-              </div>
+        {/* Interactive Weather Decision Card */}
+        <div className="w-full bg-slate-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-3 sm:p-5 border border-white/20 shadow-xl space-y-2.5 transition-all">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="flex items-center gap-2 text-xs font-black text-[#fcd444] tracking-wide uppercase min-w-0">
+              <Sparkles className="w-4 h-4 shrink-0 text-[#fcd444]" />
+              <span className="truncate">WeatherGPT {role} Decision</span>
             </div>
 
-            <div className="shrink-0 pt-0.5">
-              <DemoBadge label="DEMO DATA" variant="sky" />
-            </div>
+            <button
+              onClick={() => onAskGpt(decision.action)}
+              className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-bold text-white hover:text-[#fcd444] transition-colors cursor-pointer shrink-0"
+            >
+              <span>Ask AI</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          <p className="text-[10px] sm:text-xs text-slate-600 font-medium leading-snug">
-            {decision.reason}
-          </p>
-
-          <button
-            onClick={() => onAskGpt(`Why is "${decision.action}" recommended for ${city}?`)}
-            className="w-full py-2.5 px-2 rounded-xl bg-gradient-to-r from-[#38b6ff] to-[#004aad] hover:opacity-95 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-1 cursor-pointer mt-1 active:scale-98"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#fcd444] shrink-0" />
-            <span className="text-[10px] sm:text-xs text-center leading-tight truncate">Ask WeatherGPT AI about this decision</span>
-            <ArrowRight className="w-3.5 h-3.5 shrink-0" />
-          </button>
+          <div className="space-y-1">
+            <h3 className="text-sm sm:text-base font-extrabold text-white leading-snug">
+              {decision.icon} {decision.action}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed">
+              {decision.reason}
+            </p>
+          </div>
         </div>
       </div>
     </div>

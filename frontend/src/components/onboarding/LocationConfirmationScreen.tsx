@@ -5,16 +5,25 @@ import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 
 export const LocationConfirmationScreen: React.FC = () => {
-  const { location } = useLocation();
+  const { location, openSelector } = useLocation();
   const { confirmOnboarding, isSubmitting } = useProfile();
   const { goToStep } = useAuth();
 
-  const formattedCity = location?.city || 'Mumbai';
-  const formattedState = location?.state ? `${location.district ? `${location.district}, ` : ''}${location.state}` : 'Maharashtra';
-  const isGps = location?.location_source === 'gps';
+  const primaryTitle = (location?.city && location.city !== 'India')
+    ? location.city
+    : ((location?.district && location.district !== 'India') ? location.district : (location?.state || 'Current Location'));
+
+  const rawParts = [
+    (location?.district && location.district !== primaryTitle && location.district !== 'India') ? location.district : null,
+    (location?.state && location.state !== primaryTitle) ? location.state : null,
+    location?.country || 'India'
+  ].filter(Boolean) as string[];
+
+  const subtitle = rawParts.filter((item, pos) => rawParts.indexOf(item) === pos).join(', ');
+  const isGps = (location?.source || location?.location_source) === 'gps';
 
   return (
-    <div className="min-h-screen bg-[#F4F7FC] flex items-center justify-center p-4 sm:p-6 md:p-8 relative">
+    <div className="min-h-screen bg-[#F4F7FC] flex items-center justify-center p-4 sm:p-6 md:p-8 relative font-['Arimo']">
       <div className="w-full max-w-md bg-white sm:rounded-3xl sm:shadow-2xl sm:border sm:border-slate-200/80 p-6 sm:p-8 flex flex-col justify-between min-h-[85vh] sm:min-h-[520px] text-center transition-all">
         <div className="pt-4 space-y-4">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 text-sky-800 text-xs font-bold shadow-2xs">
@@ -27,20 +36,20 @@ export const LocationConfirmationScreen: React.FC = () => {
           </div>
 
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-            📍 {formattedCity}
+            📍 {primaryTitle}
           </h2>
 
           <p className="text-sm font-bold text-slate-500">
-            {formattedState}, {location?.country || 'India'}
+            {subtitle}
           </p>
 
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-600">
             <Navigation className="w-3.5 h-3.5 text-sky-600" />
-            <span>{isGps ? 'Detected from your current location' : 'Selected manually'}</span>
+            <span>{isGps ? 'Detected from current GPS / network location' : 'Selected manually'}</span>
           </div>
 
           <div className="p-4 rounded-2xl bg-sky-50 border border-sky-100/80 text-xs font-semibold text-sky-900 max-w-xs mx-auto my-3">
-            WeatherGPT will personalize weather intelligence for this location.
+            WeatherGPT will personalize weather intelligence for this exact location.
           </div>
         </div>
 
@@ -55,11 +64,14 @@ export const LocationConfirmationScreen: React.FC = () => {
           </button>
 
           <button
-            onClick={() => goToStep('LOCATION')}
+            onClick={() => {
+              openSelector();
+              goToStep('LOCATION');
+            }}
             className="w-full py-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-sm border border-slate-200/80 shadow-2xs transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <Edit2 className="w-4 h-4 text-slate-500" />
-            <span>Change Location</span>
+            <span>Change Location (Search Any Village/City)</span>
           </button>
         </div>
       </div>

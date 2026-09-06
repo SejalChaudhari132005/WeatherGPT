@@ -9,7 +9,7 @@ interface Props {
 export const SuggestionCard: React.FC<Props> = ({ suggestion, onClick }) => {
   return (
     <button
-      onClick={() => onClick(suggestion.text)}
+      onClick={() => onClick(suggestion.text || suggestion.prompt || '')}
       className="p-3.5 rounded-2xl bg-white hover:bg-sky-50/80 border border-slate-200/90 hover:border-[#38b6ff]/50 shadow-2xs hover:shadow-md transition-all text-left flex items-start gap-3 group cursor-pointer font-['Arimo']"
     >
       <span className="text-xl p-2 rounded-xl bg-slate-50 group-hover:bg-white shrink-0 shadow-inner">

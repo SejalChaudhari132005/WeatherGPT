@@ -1,8 +1,9 @@
 import React from 'react';
 import { LanguageProvider } from './context/LanguageContext';
 import { UIProvider, useUI } from './context/UIContext';
-import { WeatherProvider } from './context/WeatherContext';
+import { WeatherProvider, useWeather } from './context/WeatherContext';
 import { AuthProvider, useAuthContext } from './context/AuthContext';
+import { LocationProvider } from './context/LocationContext';
 
 import { MobileAppShell } from './components/layout/MobileAppShell';
 import { MobileHeroWeatherCard } from './components/dashboard/MobileHeroWeatherCard';
@@ -27,6 +28,7 @@ import { RoleConfirmationScreen } from './components/onboarding/RoleConfirmation
 import { LocationSetupScreen } from './components/onboarding/LocationSetupScreen';
 import { LocationConfirmationScreen } from './components/onboarding/LocationConfirmationScreen';
 
+import { DashboardPage } from './pages/DashboardPage';
 import { AlertsPage } from './pages/AlertsPage';
 import { ClimatePage } from './pages/ClimatePage';
 import { WhatIfPage } from './pages/WhatIfPage';
@@ -35,19 +37,28 @@ import { EmergencyPage } from './pages/EmergencyPage';
 import { Loader2 } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
-  const { activeTab, emergencyMode } = useUI();
+  const { activeTab, setActiveTab, emergencyMode } = useUI();
+  const { sendQueryToWeatherGPT } = useWeather();
+
+  const handleOpenChatWithPrompt = (promptText: string) => {
+    sendQueryToWeatherGPT(promptText);
+    setActiveTab('ask');
+  };
 
   const renderActivePage = () => {
     if (emergencyMode) return <EmergencyPage />;
 
     switch (activeTab) {
       case 'home':
+      case 'live':
         return (
-          <div className="space-y-2 pb-12">
-            <MobileHeroWeatherCard />
-            <MobileEarlyWarningsCard />
-            <RoleBasedAdvisoryCard />
-          </div>
+          <DashboardPage
+            onOpenChatWithPrompt={handleOpenChatWithPrompt}
+            onNavigatePage={(page) => {
+              if (page === 'map') setActiveTab('radar');
+              else if (page === 'alerts') setActiveTab('alerts');
+            }}
+          />
         );
       case 'ask':
         return (
@@ -77,10 +88,13 @@ const MainAppContent: React.FC = () => {
         return <EmergencyPage />;
       default:
         return (
-          <div className="space-y-2 pb-12">
-            <MobileHeroWeatherCard />
-            <MobileEarlyWarningsCard />
-          </div>
+          <DashboardPage
+            onOpenChatWithPrompt={handleOpenChatWithPrompt}
+            onNavigatePage={(page) => {
+              if (page === 'map') setActiveTab('radar');
+              else if (page === 'alerts') setActiveTab('alerts');
+            }}
+          />
         );
     }
   };
@@ -141,9 +155,11 @@ export function App() {
     <LanguageProvider>
       <UIProvider>
         <AuthProvider>
-          <WeatherProvider>
-            <RootRouter />
-          </WeatherProvider>
+          <LocationProvider>
+            <WeatherProvider>
+              <RootRouter />
+            </WeatherProvider>
+          </LocationProvider>
         </AuthProvider>
       </UIProvider>
     </LanguageProvider>

@@ -49,7 +49,7 @@ export const ChatMessage: React.FC<Props> = ({ message, onFollowupClick }) => {
           {message.weatherData && <WeatherInsightCard data={message.weatherData} />}
 
           {/* Embedded Advisory Box */}
-          {message.weatherData?.advisory && (
+          {message.weatherData?.advisory && typeof message.weatherData.advisory !== 'string' && (
             <WeatherAdvisoryCard advisory={message.weatherData.advisory} />
           )}
 

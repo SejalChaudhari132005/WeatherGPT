@@ -1,67 +1,168 @@
 import React from 'react';
-import { HeroWeatherCard } from '../components/dashboard/HeroWeatherCard';
-import { AskWeatherGPTCard } from '../components/dashboard/AskWeatherGPTCard';
-import { RadarMap } from '../components/radar/RadarMap';
-import { HourlyForecastCard } from '../components/dashboard/HourlyForecastCard';
-import { DarkHumidityCard } from '../components/dashboard/DarkHumidityCard';
-import { TomorrowForecastCard } from '../components/dashboard/TomorrowForecastCard';
-import { ProactiveAlertCard } from '../components/dashboard/ProactiveAlertCard';
-import { RoleBasedAdvisoryCard } from '../components/dashboard/RoleBasedAdvisoryCard';
-import { HyperlocalWeatherCard } from '../components/dashboard/HyperlocalWeatherCard';
-import { useProfile } from '../hooks/useProfile';
+import { MessageSquare, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { useWeather } from '../hooks/useWeather';
+import { useLocation } from '../hooks/useLocation';
+import { useAuthContext } from '../context/AuthContext';
+import { getMockWeatherData } from '../data/mockWeather';
+import { WeatherHero } from '../components/dashboard/WeatherHero';
+import { WeatherMetrics } from '../components/dashboard/WeatherMetrics';
+import { HourlyForecast } from '../components/dashboard/HourlyForecast';
+import { RiskOverview } from '../components/dashboard/RiskOverview';
+import { RoleIntelligence } from '../components/dashboard/RoleIntelligence';
+import { LiveWeatherMap } from '../components/dashboard/LiveWeatherMap';
+import { WeatherAlerts } from '../components/dashboard/WeatherAlerts';
+import { WeeklyForecast } from '../components/dashboard/WeeklyForecast';
+import { QuickActions } from '../components/dashboard/QuickActions';
+import { DemoBadge } from '../components/common/DemoBadge';
 
-export const DashboardPage: React.FC = () => {
-  const { username } = useProfile();
+interface Props {
+  onBack?: () => void;
+  onOpenChatWithPrompt?: (promptText: string) => void;
+  onNavigatePage?: (page: any) => void;
+}
 
-  const getGreetingTime = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+export const DashboardPage: React.FC<Props> = ({
+  onOpenChatWithPrompt,
+  onNavigatePage,
+}) => {
+  const { weather, loading, error, refreshWeather } = useWeather();
+  const { location } = useLocation();
+  const { profile } = useAuthContext();
+
+  const role = (profile?.role || 'citizen').toLowerCase();
+  const city = location?.city || profile?.city || 'Pune';
+  const state = location?.state || profile?.state || 'Maharashtra';
+  const locationDisplay = `${city}, ${state}`;
+
+  // Fallback mock weather container if live stream unavailable
+  const fallbackMock = getMockWeatherData(city, state);
+  const roleIntelligence = fallbackMock.roleIntelligence[role] || fallbackMock.roleIntelligence.citizen;
+
+  const handleAskGpt = (promptText: string) => {
+    if (onOpenChatWithPrompt) {
+      onOpenChatWithPrompt(promptText);
+    }
   };
 
+  // Convert live normalized weather into WeatherHero props
+  const heroWeatherData = weather ? {
+    ...fallbackMock,
+    city: weather.location.city || city,
+    state: weather.location.state || state,
+    temperature: weather.current.temperature ?? fallbackMock.temperature,
+    feelsLike: weather.current.feels_like ?? fallbackMock.feelsLike,
+    condition: weather.current.condition || fallbackMock.condition,
+    humidity: weather.current.humidity ?? fallbackMock.humidity,
+    windSpeed: weather.current.wind_speed ?? fallbackMock.windSpeed,
+    windDirection: weather.current.wind_direction || fallbackMock.windDirection,
+    visibility: weather.current.visibility ?? fallbackMock.visibility,
+    pressure: weather.current.pressure ?? fallbackMock.pressure,
+    uvIndex: weather.current.uv_index ?? fallbackMock.uvIndex,
+    rainProbability: weather.current.rain_probability ?? fallbackMock.rainProbability,
+    updatedTime: weather.source.retrieved_at ? new Date(weather.source.retrieved_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
+  } : fallbackMock;
+
+  const hourlyItems = weather?.hourly && weather.hourly.length > 0 ? weather.hourly : fallbackMock.hourlyForecast;
+  const weeklyItems = weather?.daily && weather.daily.length > 0
+    ? weather.daily.map(d => ({ ...d, rainProb: d.rainProbability }))
+    : fallbackMock.weeklyForecast;
+
   return (
-    <div className="space-y-6 pb-20 md:pb-12">
-      {/* Top Greeting Header matching Screenshot */}
-      <div className="space-y-1">
-        <span className="text-[10px] font-black uppercase tracking-wider text-sky-600 block">
-          YOUR CONVERSATIONAL WEATHER DESK
-        </span>
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-          {getGreetingTime()} <span className="animate-bounce">👋</span>
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 font-medium">
-          Your quick weather cards on the left. A full WeatherGPT conversation on the right.
-        </p>
+    <div className="min-h-screen bg-[#F4F7FC] p-2.5 sm:p-4 md:p-6 font-['Arimo'] max-w-4xl mx-auto space-y-3.5 sm:space-y-5 pb-24 overflow-x-hidden w-full max-w-full">
+      
+      {/* Top Header with Live Provider Data Badge & Manual Refresh */}
+      <div className="flex items-center justify-between gap-2 px-0.5 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="p-1.5 sm:p-2 rounded-xl sm:rounded-2xl bg-white text-[#004aad] border border-slate-200 shadow-2xs shrink-0 flex items-center justify-center">
+            <img src="/assets/logo-icon.png" alt="WeatherGPT Logo" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm sm:text-2xl font-black text-slate-900 tracking-tight truncate">Live Weather Dashboard</h2>
+              {weather?.source?.provider && (
+                <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black tracking-wide border border-emerald-300">
+                  ● {weather.source.is_cached ? 'CACHED' : 'LIVE'} ({weather.source.provider})
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] sm:text-xs text-slate-500 font-medium truncate">Hyperlocal weather & role intelligence</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={() => refreshWeather()}
+            disabled={loading}
+            title="Refresh weather data"
+            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-[#004aad] hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-[#38b6ff]' : ''}`} />
+          </button>
+
+          <button
+            onClick={() => handleAskGpt(`Give me a complete weather report for ${locationDisplay}`)}
+            className="px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#004aad] to-[#38b6ff] text-white shadow-md flex items-center gap-1 text-xs font-extrabold cursor-pointer hover:opacity-95 transition-all shrink-0 active:scale-95"
+          >
+            <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#fcd444]" />
+            <span className="text-[11px] sm:text-xs font-black">Chat</span>
+          </button>
+        </div>
       </div>
 
-      {/* Main Split Grid Layout matching Screenshot: Left Quick Weather Cards | Right AI Weather Desk */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Left Column: Primary Weather Card + 4 Metric Cards */}
-        <HeroWeatherCard />
+      {/* Error Notice */}
+      {error && (
+        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between gap-2 font-semibold">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => refreshWeather()} className="text-[11px] underline font-bold text-amber-900">
+            Retry
+          </button>
+        </div>
+      )}
 
-        {/* Right Column: Vibrant AI Weather Desk Card */}
-        <AskWeatherGPTCard />
-      </div>
+      {/* 1. Location-Aware & Role-Aware Hero */}
+      <WeatherHero
+        weather={heroWeatherData}
+        role={role}
+        locationName={locationDisplay}
+        onAskGpt={handleAskGpt}
+      />
 
-      {/* Proactive WeatherGPT Notice Banner */}
-      <ProactiveAlertCard />
+      {/* 2. Current Environmental Metrics */}
+      <WeatherMetrics current={weather?.current} weather={heroWeatherData} />
 
-      {/* Row 2 Grid: Saved Cities/Dark AQI | Temperature Today | Tomorrow Forecast */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        <DarkHumidityCard />
-        <HourlyForecastCard />
-        <TomorrowForecastCard />
-      </div>
+      {/* 3. Hourly Forecast Timeline */}
+      <HourlyForecast hourly={hourlyItems} />
 
-      {/* Live Satellite Radar Map */}
-      <RadarMap />
+      {/* 4. Role Intelligence Section */}
+      <RoleIntelligence
+        intelligence={roleIntelligence}
+        roleTitle={role.replace('_', ' ').toUpperCase()}
+        onAskGpt={handleAskGpt}
+      />
 
-      {/* Role Based Selector & Hyperlocal Micro-Area Risks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RoleBasedAdvisoryCard />
-        <HyperlocalWeatherCard />
-      </div>
+      {/* 5. Hyperlocal Area Risk Overview */}
+      <RiskOverview risks={fallbackMock.risks} onAskGpt={handleAskGpt} />
+
+      {/* 6. Live Weather Radar Map */}
+      <LiveWeatherMap
+        locationName={locationDisplay}
+        onOpenFullMap={() => onNavigatePage && onNavigatePage('map')}
+      />
+
+      {/* 7. Active Emergency Weather Alerts */}
+      <WeatherAlerts
+        alerts={fallbackMock.alerts}
+        onOpenAlerts={() => onNavigatePage && onNavigatePage('alerts')}
+      />
+
+      {/* 8. 7-Day Forecast */}
+      <WeeklyForecast weekly={weeklyItems} />
+
+      {/* 9. Role-Aware Quick Actions (Chat Integration) */}
+      <QuickActions role={role} locationName={locationDisplay} onAskGpt={handleAskGpt} />
     </div>
   );
 };

@@ -108,13 +108,14 @@ export const WeatherProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setChatMessages((prev) => [...prev, userMsg]);
     setIsAiThinking(true);
 
-    const activeLoc = userLocation || {
-      latitude: 19.076,
-      longitude: 72.8777,
-      city: 'Mumbai',
-      district: 'Mumbai City',
-      state: 'Maharashtra',
-      country: 'India'
+    const activeLoc: UserLocation = userLocation || {
+      latitude: 0,
+      longitude: 0,
+      city: 'Current Location',
+      district: '',
+      state: '',
+      country: 'India',
+      source: 'gps',
     };
 
     try {

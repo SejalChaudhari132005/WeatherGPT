@@ -34,7 +34,7 @@ export const WeatherAdvisoryCard: React.FC<Props> = ({ advisory }) => {
     }
   };
 
-  const styles = getImpactStyles(advisory.impactLevel);
+  const styles = getImpactStyles(advisory.impactLevel || 'low');
   const Icon = styles.icon;
 
   return (

@@ -18,7 +18,10 @@ interface AuthContextType {
   isSubmitting: boolean;
   errorMessage: string | null;
   setErrorMessage: (msg: string | null) => void;
+  profile: UserProfile | null;
   userProfile: UserProfile | null;
+  updateProfile: (updated: Partial<UserProfile>) => Promise<void>;
+  signOut: () => Promise<void>;
 
   // Actions
   handleSendOtp: (phone: string) => Promise<boolean>;
@@ -45,6 +48,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  const updateProfile = async (updated: Partial<UserProfile>) => {
+    if (!userId) return;
+    const finalProf = await profileService.upsertProfile({
+      user_id: userId,
+      ...updated,
+    });
+    setUserProfile(finalProf);
+  };
 
   // Timer effect for OTP resend countdown
   useEffect(() => {
@@ -190,7 +202,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setErrorMessage(null);
     try {
       const coords = await locationService.getCurrentPosition();
-      const resolved = await locationService.reverseGeocode(coords.latitude, coords.longitude);
+      const resolved = await locationService.resolveLocation(coords.latitude, coords.longitude, 'gps');
 
       if (!userId) return false;
 
@@ -272,6 +284,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         errorMessage,
         setErrorMessage,
         userProfile,
+        profile: userProfile,
+        updateProfile,
+        signOut: handleSignOut,
 
         handleSendOtp,
         handleVerifyOtp,
